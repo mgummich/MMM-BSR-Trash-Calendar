@@ -5,13 +5,13 @@
 
 const fs = require("fs");
 
-/** @type {Record<string, {name: string, color: string, icon: string}>} */
+/** @type {Record<string, {name: string, color: string, icon: string, svgFile: string}>} */
 const CATEGORY_MAP = {
-  BI: { name: "Biogut", color: "#8B4513", icon: "fa-seedling" },
-  HM: { name: "Hausmüll", color: "#808080", icon: "fa-trash" },
-  LT: { name: "Laubtonne", color: "#228B22", icon: "fa-leaf" },
-  WS: { name: "Wertstoffe", color: "#FFD700", icon: "fa-recycle" },
-  WB: { name: "Weihnachtsbaum", color: "#006400", icon: "fa-tree" },
+  BI: { name: "Biogut", color: "#8B4513", icon: "fa-seedling", svgFile: "BI.svg" },
+  HM: { name: "Hausmüll", color: "#808080", icon: "fa-trash", svgFile: "HM.svg" },
+  LT: { name: "Laubtonne", color: "#228B22", icon: "fa-leaf", svgFile: "LT.svg" },
+  WS: { name: "Wertstoffe", color: "#FFD700", icon: "fa-recycle", svgFile: "WS.svg" },
+  WB: { name: "Weihnachtsbaum", color: "#006400", icon: "fa-tree", svgFile: "WB.svg" },
 };
 
 /**
@@ -302,6 +302,21 @@ function saveCache(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data), "utf8");
 }
 
+/**
+ * Loads an SVG icon file and returns its content as a string.
+ * Returns null if the file cannot be read.
+ * @param {string} iconsDir - Absolute path to the icons directory
+ * @param {string} svgFile - SVG filename (e.g. "HM.svg")
+ * @returns {string|null}
+ */
+function loadSvgIcon(iconsDir, svgFile) {
+  try {
+    return fs.readFileSync(require("path").join(iconsDir, svgFile), "utf8");
+  } catch {
+    return null;
+  }
+}
+
 module.exports = {
   CATEGORY_MAP,
   parsePickupDates,
@@ -320,4 +335,5 @@ module.exports = {
   sanitizeCategories,
   loadCache,
   saveCache,
+  loadSvgIcon,
 };

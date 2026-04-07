@@ -15,6 +15,7 @@ const path = require("path");
 const utils = require("./utils.js");
 
 const CACHE_PATH = path.join(__dirname, "cache.json");
+const ICONS_DIR = path.join(__dirname, "icons");
 
 module.exports = NodeHelper.create({
   // ---------------------------------------------------------------------------
@@ -301,19 +302,26 @@ module.exports = NodeHelper.create({
       this.retryTimer = null;
     }
 
-    this.currentData = dates;
+    // Embed SVG icon content into each pickup date
+    const datesWithIcons = dates.map((d) => {
+      const categoryInfo = utils.CATEGORY_MAP[d.category];
+      const svgContent = categoryInfo ? utils.loadSvgIcon(ICONS_DIR, categoryInfo.svgFile) : null;
+      return { ...d, svgIcon: svgContent };
+    });
+
+    this.currentData = datesWithIcons;
 
     // Persist to cache
     this.saveCache({
       street: this.config.street,
       houseNumber: this.config.houseNumber,
       addressKey: this.addressKey,
-      pickupDates: dates,
+      pickupDates: datesWithIcons,
       lastFetchTimestamp: Date.now(),
     });
 
     // Notify frontend
-    this.sendSocketNotification("BSR_PICKUP_DATA", { dates });
+    this.sendSocketNotification("BSR_PICKUP_DATA", { dates: datesWithIcons });
 
     // Restart regular update interval
     this.scheduleUpdate(this.config.updateInterval);
