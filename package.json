@@ -13,7 +13,7 @@
     "test:unit": "vitest run tests/unit",
     "test:property": "vitest run tests/property",
     "test:integration": "vitest run tests/integration",
-    "prepare": "husky install"
+    "prepare": "husky || true"
   },
   "dependencies": {
     "node-fetch": "^3.3.2"
