@@ -1,11 +1,12 @@
 /**
  * utils.js — Pure utility functions for MMM-BSR-Trash-Calendar
- * All functions are stubs that will be implemented in later tasks.
  */
-import fs from "node:fs";
+"use strict";
+
+const fs = require("fs");
 
 /** @type {Record<string, {name: string, color: string, icon: string}>} */
-export const CATEGORY_MAP = {
+const CATEGORY_MAP = {
   BI: { name: "Biogut", color: "#8B4513", icon: "fa-seedling" },
   HM: { name: "Hausmüll", color: "#808080", icon: "fa-trash" },
   LT: { name: "Laubtonne", color: "#228B22", icon: "fa-leaf" },
@@ -21,7 +22,7 @@ export const CATEGORY_MAP = {
  * @returns {PickupDate[]}
  * @throws {Error} If apiResponse is invalid
  */
-export function parsePickupDates(apiResponse, today) {
+function parsePickupDates(apiResponse, today) {
   if (
     apiResponse === null ||
     apiResponse === undefined ||
@@ -80,7 +81,7 @@ export function parsePickupDates(apiResponse, today) {
  * @param {string[]} categories - Array of category codes to keep
  * @returns {PickupDate[]}
  */
-export function filterByCategories(dates, categories) {
+function filterByCategories(dates, categories) {
   const catSet = new Set(categories);
   return dates.filter((d) => catSet.has(d.category));
 }
@@ -91,7 +92,7 @@ export function filterByCategories(dates, categories) {
  * @param {PickupDate[]} dates
  * @returns {PickupDate[]}
  */
-export function sortByDate(dates) {
+function sortByDate(dates) {
   return [...dates].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
@@ -101,7 +102,7 @@ export function sortByDate(dates) {
  * @param {string} today - ISO date string "YYYY-MM-DD"
  * @returns {PickupDate[]}
  */
-export function filterPastDates(dates, today) {
+function filterPastDates(dates, today) {
   return dates.filter((d) => d.date >= today);
 }
 
@@ -112,7 +113,7 @@ export function filterPastDates(dates, today) {
  * @param {string} format - Format string (e.g. "dd.MM.yyyy")
  * @returns {string}
  */
-export function formatDate(date, format) {
+function formatDate(date, format) {
   const [yyyy, mm, dd] = date.split("-");
   return format
     .replace("dd", dd)
@@ -127,7 +128,7 @@ export function formatDate(date, format) {
  * @param {string} today - ISO date string "YYYY-MM-DD"
  * @returns {"Heute" | "Morgen" | null}
  */
-export function getRelativeLabel(date, today) {
+function getRelativeLabel(date, today) {
   if (date === today) {
     return "Heute";
   }
@@ -146,7 +147,7 @@ export function getRelativeLabel(date, today) {
  * @param {string} code - Category code ("BI", "HM", etc.)
  * @returns {{ name: string, color: string, icon: string } | null}
  */
-export function getCategoryDisplay(code) {
+function getCategoryDisplay(code) {
   return CATEGORY_MAP[code] ?? null;
 }
 
@@ -155,7 +156,7 @@ export function getCategoryDisplay(code) {
  * @param {object} config
  * @returns {{ config: object } | { error: string }}
  */
-export function validateConfig(config) {
+function validateConfig(config) {
   const missing = [];
   if (!config || typeof config.street !== "string" || config.street === "") {
     missing.push("street");
@@ -185,7 +186,7 @@ export function validateConfig(config) {
  * @param {PickupDate} pickupDate
  * @returns {{ dates: { [date: string]: Array<object> } }}
  */
-export function serializePickupDate(pickupDate) {
+function serializePickupDate(pickupDate) {
   const [yyyy, mm, dd] = pickupDate.date.split("-");
   return {
     dates: {
@@ -212,7 +213,7 @@ export function serializePickupDate(pickupDate) {
  * @param {number} interval - Update interval in ms
  * @returns {boolean}
  */
-export function isCacheValid(cache, _config, now, interval) {
+function isCacheValid(cache, _config, now, interval) {
   if (now - cache.lastFetchTimestamp >= interval) {
     return false;
   }
@@ -227,7 +228,7 @@ export function isCacheValid(cache, _config, now, interval) {
  * @param {object} config - Module configuration
  * @returns {boolean}
  */
-export function isCacheAddressMatch(cache, config) {
+function isCacheAddressMatch(cache, config) {
   return cache.street === config.street && cache.houseNumber === config.houseNumber;
 }
 
@@ -238,7 +239,7 @@ export function isCacheAddressMatch(cache, config) {
  * @param {number} retryCount - Number of retries already attempted (0-based)
  * @returns {number} Delay in milliseconds
  */
-export function calculateRetryDelay(retryCount) {
+function calculateRetryDelay(retryCount) {
   const minutes = Math.min(5 * Math.pow(2, retryCount), 120);
   return minutes * 60 * 1000;
 }
@@ -248,7 +249,7 @@ export function calculateRetryDelay(retryCount) {
  * @param {Date} [now] - Reference date (defaults to current date)
  * @returns {{ year: number, month: number }[]} Array of two { year, month } objects (month is 1-based)
  */
-export function getMonthRange(now) {
+function getMonthRange(now) {
   const date = now ?? new Date();
   const year = date.getFullYear();
   const month = date.getMonth() + 1; // 1-based
@@ -264,7 +265,7 @@ export function getMonthRange(now) {
  * @param {string[]} categories
  * @returns {string[]}
  */
-export function sanitizeCategories(categories) {
+function sanitizeCategories(categories) {
   const valid = Object.keys(CATEGORY_MAP);
   const filtered = (categories || []).filter((c) => valid.includes(c));
   return filtered.length > 0 ? filtered : valid;
@@ -275,7 +276,7 @@ export function sanitizeCategories(categories) {
  * @param {string} filePath - Absolute or relative path to the cache file
  * @returns {object|null}
  */
-export function loadCache(filePath) {
+function loadCache(filePath) {
   try {
     const raw = fs.readFileSync(filePath, "utf8");
     return JSON.parse(raw);
@@ -289,6 +290,26 @@ export function loadCache(filePath) {
  * @param {string} filePath - Absolute or relative path to the cache file
  * @param {object} data - Data to serialize
  */
-export function saveCache(filePath, data) {
+function saveCache(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data), "utf8");
 }
+
+module.exports = {
+  CATEGORY_MAP,
+  parsePickupDates,
+  filterByCategories,
+  sortByDate,
+  filterPastDates,
+  formatDate,
+  getRelativeLabel,
+  getCategoryDisplay,
+  validateConfig,
+  serializePickupDate,
+  isCacheValid,
+  isCacheAddressMatch,
+  calculateRetryDelay,
+  getMonthRange,
+  sanitizeCategories,
+  loadCache,
+  saveCache,
+};

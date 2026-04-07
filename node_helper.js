@@ -12,6 +12,7 @@
 
 const NodeHelper = require("node_helper");
 const path = require("path");
+const utils = require("./utils.js");
 
 const CACHE_PATH = path.join(__dirname, "cache.json");
 
@@ -44,9 +45,6 @@ module.exports = NodeHelper.create({
   /** @type {Array|null} Last successfully fetched pickup dates */
   currentData: null,
 
-  /** @type {object|null} Lazily loaded utils module (ESM, loaded via dynamic import) */
-  _utils: null,
-
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
@@ -63,16 +61,8 @@ module.exports = NodeHelper.create({
     this.config = null;
     this.addressKey = null;
     this.currentData = null;
-    this._utils = null;
 
-    // Pre-load the ESM utils module so it is ready when the first notification arrives.
-    import("./utils.js")
-      .then((utils) => {
-        this._utils = utils;
-      })
-      .catch((err) => {
-        console.error("[MMM-BSR-Trash-Calendar] Failed to load utils.js:", err);
-      });
+    Log.info("[MMM-BSR-Trash-Calendar] Node helper started");
   },
 
   // ---------------------------------------------------------------------------
@@ -89,21 +79,7 @@ module.exports = NodeHelper.create({
       return;
     }
 
-    // Ensure utils are loaded (lazy fallback in case start() import hasn't resolved yet)
-    if (!this._utils) {
-      try {
-        this._utils = await import("./utils.js");
-      } catch (err) {
-        console.error("[MMM-BSR-Trash-Calendar] Cannot load utils.js:", err);
-        this.sendSocketNotification("BSR_ERROR", {
-          message: "Internal error: utils not available",
-          type: "CONFIG_ERROR",
-        });
-        return;
-      }
-    }
-
-    const { validateConfig } = this._utils;
+    const { validateConfig } = utils;
 
     // 1. Validate configuration
     const validation = validateConfig(payload);
@@ -139,7 +115,7 @@ module.exports = NodeHelper.create({
    * Called on init and on each retry/update tick.
    */
   async _fetchAndUpdate() {
-    const { isCacheValid, isCacheAddressMatch } = this._utils;
+    const { isCacheValid, isCacheAddressMatch } = utils;
 
     // 3. Load cache
     const cache = this.loadCache();
@@ -226,7 +202,7 @@ module.exports = NodeHelper.create({
    * @returns {Promise<Array>} Combined, parsed pickup dates
    */
   async fetchPickupDates(addressKey) {
-    const { getMonthRange, parsePickupDates } = this._utils;
+    const { getMonthRange, parsePickupDates } = utils;
     const months = getMonthRange(new Date());
     const allDates = [];
 
@@ -256,8 +232,7 @@ module.exports = NodeHelper.create({
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
-      // node-fetch is an ESM-only package in v3; use dynamic import
-      const { default: fetch } = await import("node-fetch");
+      const fetch = require("node-fetch");
       const res = await fetch(url, { signal: controller.signal });
 
       if (!res.ok) {
@@ -286,8 +261,7 @@ module.exports = NodeHelper.create({
    * @returns {object|null}
    */
   loadCache() {
-    const { loadCache } = this._utils;
-    return loadCache(CACHE_PATH);
+    return utils.loadCache(CACHE_PATH);
   },
 
   /**
@@ -295,8 +269,7 @@ module.exports = NodeHelper.create({
    * @param {object} data
    */
   saveCache(data) {
-    const { saveCache } = this._utils;
-    saveCache(CACHE_PATH, data);
+    utils.saveCache(CACHE_PATH, data);
   },
 
   // ---------------------------------------------------------------------------
@@ -349,7 +322,7 @@ module.exports = NodeHelper.create({
       this.updateTimer = null;
     }
 
-    const delay = this._utils.calculateRetryDelay(this.retryCount);
+    const delay = utils.calculateRetryDelay(this.retryCount);
     this.retryCount++;
 
     // If we have cached data, keep showing it; otherwise send an error
