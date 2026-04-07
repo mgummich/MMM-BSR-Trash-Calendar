@@ -16,7 +16,6 @@ const LIVE = process.env.BSR_LIVE_TESTS === "true";
 // Known test address — Bergmannstr. 12, 10965 Berlin
 const TEST_STREET = "Bergmannstr.";
 const TEST_HOUSE_NUMBER = "12";
-const TEST_ADDRESS_KEY = "10965_Bergmannstr._12";
 
 const ADDRESS_LOOKUP_URL = (street, houseNumber) =>
   `https://umnewforms.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet` +
@@ -94,66 +93,95 @@ describe.skipIf(!LIVE)("BSR Live API — Adressauflösung", () => {
 describe.skipIf(!LIVE)("BSR Live API — Kalenderabruf", () => {
   let year;
   let month;
+  let resolvedAddressKey;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     const now = new Date();
     year = now.getFullYear();
     month = now.getMonth() + 1;
+
+    // Resolve the address key dynamically so tests use the current API format
+    const url = ADDRESS_LOOKUP_URL(TEST_STREET, TEST_HOUSE_NUMBER);
+    const data = await fetchWithTimeout(url);
+    resolvedAddressKey = data[0]?.value;
+    console.log(`[live test] resolved address key: ${resolvedAddressKey}`);
   });
 
   // Requirement 14.4
-  it("should return pickup dates for a known address key", async () => {
-    // Given: A known address key and the current month
-    const url = CALENDAR_URL(TEST_ADDRESS_KEY, year, month);
+  it("should return a response with a 'dates' field for a known address key", async () => {
+    // Given: A dynamically resolved address key and the current month
+    const url = CALENDAR_URL(resolvedAddressKey, year, month);
 
     // When: The BSR calendar API is called
     const data = await fetchWithTimeout(url);
 
-    // Then: Returns an object with a 'dates' field
+    // Then: Returns an object with a 'dates' field (may be empty if no pickups this month)
     expect(data).toBeDefined();
     expect(typeof data).toBe("object");
     expect(data.dates).toBeDefined();
     expect(typeof data.dates).toBe("object");
+    expect(data.AddrKey).toBe(resolvedAddressKey);
   }, 35000);
 
-  it("should return dates with valid category and serviceDate_actual fields", async () => {
-    // Given: A known address key and the current month
-    const url = CALENDAR_URL(TEST_ADDRESS_KEY, year, month);
-
-    // When: The BSR calendar API is called
-    const data = await fetchWithTimeout(url);
-
-    // Then: Each entry has required fields
+  it("should return valid pickup entries when dates are present", async () => {
+    // Given: Try current and next month to find actual pickup data
     const VALID_CATEGORIES = ["BI", "HM", "LT", "WS", "WB"];
     const DATE_PATTERN = /^\d{2}\.\d{2}\.\d{4}$/;
 
-    for (const entries of Object.values(data.dates)) {
-      expect(Array.isArray(entries)).toBe(true);
-      for (const entry of entries) {
-        expect(VALID_CATEGORIES).toContain(entry.category);
-        expect(entry.serviceDate_actual).toMatch(DATE_PATTERN);
-        expect(typeof entry.disposalComp).toBe("string");
+    let foundEntries = false;
+    for (let offset = 0; offset <= 3; offset++) {
+      const d = new Date(year, month - 1 + offset, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const url = CALENDAR_URL(resolvedAddressKey, y, m);
+      const data = await fetchWithTimeout(url);
+      const entries = Object.values(data.dates || {}).flat();
+
+      if (entries.length > 0) {
+        foundEntries = true;
+        for (const entry of entries) {
+          expect(VALID_CATEGORIES).toContain(entry.category);
+          expect(entry.serviceDate_actual).toMatch(DATE_PATTERN);
+          expect(typeof entry.disposalComp).toBe("string");
+        }
+        console.log(`[live test] found ${entries.length} entries in month +${offset}`);
+        break;
       }
+    }
+
+    // Note: if no entries found across 4 months, the API may have changed
+    if (!foundEntries) {
+      console.warn(
+        "[live test] WARNING: No pickup entries found across 4 months — BSR API may have changed"
+      );
     }
   }, 35000);
 
   it("should return pickup dates that can be parsed by parsePickupDates", async () => {
-    // Given: A known address key and the current month
+    // Given: A dynamically resolved address key
     const { parsePickupDates } = require("../../utils.js");
-    const url = CALENDAR_URL(TEST_ADDRESS_KEY, year, month);
 
-    // When: The BSR calendar API is called and response is parsed
-    const data = await fetchWithTimeout(url);
-    const parsed = parsePickupDates(data);
+    // Try months until we find data or exhaust attempts
+    for (let offset = 0; offset <= 3; offset++) {
+      const d = new Date(year, month - 1 + offset, 1);
+      const url = CALENDAR_URL(resolvedAddressKey, d.getFullYear(), d.getMonth() + 1);
+      const data = await fetchWithTimeout(url);
+      const parsed = parsePickupDates(data);
 
-    // Then: Returns an array of valid PickupDate objects
-    expect(Array.isArray(parsed)).toBe(true);
-    for (const entry of parsed) {
-      expect(typeof entry.date).toBe("string");
-      expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(typeof entry.category).toBe("string");
-      expect(typeof entry.categoryName).toBe("string");
-      expect(typeof entry.disposalCompany).toBe("string");
+      expect(Array.isArray(parsed)).toBe(true);
+
+      if (parsed.length > 0) {
+        for (const entry of parsed) {
+          expect(typeof entry.date).toBe("string");
+          expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+          expect(typeof entry.category).toBe("string");
+          expect(typeof entry.categoryName).toBe("string");
+          expect(typeof entry.disposalCompany).toBe("string");
+        }
+        console.log(`[live test] parsePickupDates returned ${parsed.length} entries`);
+        return;
+      }
     }
+    console.warn("[live test] WARNING: parsePickupDates returned empty array across 4 months");
   }, 35000);
 });
