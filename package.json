@@ -1,0 +1,32 @@
+{
+  "name": "MMM-BSR-Trash-Calendar",
+  "version": "1.0.0",
+  "description": "MagicMirror² module to display BSR/ALBA trash collection dates for a configured Berlin address",
+  "main": "MMM-BSR-Trash-Calendar.js",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:property": "vitest run tests/property",
+    "test:integration": "vitest run tests/integration",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8",
+    "fast-check": "^3.22.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.11",
+    "commitlint": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0"
+  },
+  "license": "MIT"
+}
