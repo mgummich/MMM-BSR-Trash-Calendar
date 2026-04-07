@@ -153,25 +153,33 @@ function getCategoryDisplay(code) {
 
 /**
  * Validates the module configuration.
+ * Accepts either (street + houseNumber) or (addressKey) as identification.
  * @param {object} config
  * @returns {{ config: object } | { error: string }}
  */
 function validateConfig(config) {
-  const missing = [];
-  if (!config || typeof config.street !== "string" || config.street === "") {
-    missing.push("street");
-  }
-  if (!config || typeof config.houseNumber !== "string" || config.houseNumber === "") {
-    missing.push("houseNumber");
-  }
+  const hasAddressKey = config && typeof config.addressKey === "string" && config.addressKey !== "";
+  const hasStreet = config && typeof config.street === "string" && config.street !== "";
+  const hasHouseNumber =
+    config && typeof config.houseNumber === "string" && config.houseNumber !== "";
 
-  if (missing.length > 0) {
+  if (!hasAddressKey && !(hasStreet && hasHouseNumber)) {
+    const missing = [];
+    if (!hasAddressKey && !hasStreet) {
+      missing.push("street");
+    }
+    if (!hasAddressKey && !hasHouseNumber) {
+      missing.push("houseNumber");
+    }
     return { error: `Missing required parameters: ${missing.join(", ")}` };
   }
 
   return {
     config: {
       ...config,
+      addressKey: config.addressKey || null,
+      street: config.street || "",
+      houseNumber: config.houseNumber || "",
       dateFormat: config.dateFormat || "dd.MM.yyyy",
       maxEntries: config.maxEntries ?? 5,
       updateInterval: config.updateInterval ?? 86400000,

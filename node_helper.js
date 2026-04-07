@@ -140,23 +140,28 @@ module.exports = NodeHelper.create({
 
     // 4. Resolve address if we don't have one yet
     if (!this.addressKey) {
-      let key;
-      try {
-        key = await this.resolveAddress(this.config.street, this.config.houseNumber);
-      } catch (err) {
-        this.handleApiError(err);
-        return;
-      }
+      // Use directly configured addressKey if provided, skip API lookup
+      if (this.config.addressKey) {
+        this.addressKey = this.config.addressKey;
+      } else {
+        let key;
+        try {
+          key = await this.resolveAddress(this.config.street, this.config.houseNumber);
+        } catch (err) {
+          this.handleApiError(err);
+          return;
+        }
 
-      if (!key) {
-        this.sendSocketNotification("BSR_ERROR", {
-          message: "Adresse nicht gefunden",
-          type: "ADDRESS_NOT_FOUND",
-        });
-        return;
-      }
+        if (!key) {
+          this.sendSocketNotification("BSR_ERROR", {
+            message: "Adresse nicht gefunden",
+            type: "ADDRESS_NOT_FOUND",
+          });
+          return;
+        }
 
-      this.addressKey = key;
+        this.addressKey = key;
+      }
     }
 
     // 5. Fetch pickup dates for current + next month

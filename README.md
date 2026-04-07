@@ -78,6 +78,22 @@ npm run start
 }
 ```
 
+### Configuration with direct address key (skip address lookup)
+
+If you already know your BSR address key, you can provide it directly to skip the address lookup step:
+
+```javascript
+{
+  module: "MMM-BSR-Trash-Calendar",
+  position: "top_right",
+  config: {
+    addressKey: "10965_Bergmannstr._12"
+  }
+}
+```
+
+> **Tip:** To find your address key, check the BSR website or look it up once via the address lookup API: `https://umnewforms.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr.:::12`
+
 ### Full configuration (all options)
 
 ```javascript
@@ -86,9 +102,10 @@ npm run start
   position: "top_right",
   header: "Abfuhrtermine",
   config: {
-    // Required
+    // Required: either addressKey OR street + houseNumber
     street: "Bergmannstr.",
     houseNumber: "12",
+    // addressKey: "10965_Bergmannstr._12",  // alternative: skip address lookup
 
     // Optional
     dateFormat: "dd.MM.yyyy",
@@ -103,12 +120,15 @@ npm run start
 
 | Parameter        | Type       | Default                          | Required | Description                                                                                                                               |
 | ---------------- | ---------- | -------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `street`         | `string`   | —                                | ✅ Yes   | Street name as used by BSR (e.g. `"Bergmannstr."`, `"Oranienstr."`)                                                                       |
-| `houseNumber`    | `string`   | —                                | ✅ Yes   | House number (e.g. `"12"`, `"4a"`)                                                                                                        |
+| `street`         | `string`   | —                                | ✅ Yes¹  | Street name as used by BSR (e.g. `"Bergmannstr."`, `"Oranienstr."`)                                                                       |
+| `houseNumber`    | `string`   | —                                | ✅ Yes¹  | House number (e.g. `"12"`, `"4a"`)                                                                                                        |
+| `addressKey`     | `string`   | —                                | ✅ Yes¹  | BSR address key (e.g. `"10965_Bergmannstr._12"`). If provided, skips address lookup. Either this or `street`+`houseNumber` is required.   |
 | `dateFormat`     | `string`   | `"dd.MM.yyyy"`                   | No       | Date format for pickup dates. Supported tokens: `dd`, `MM`, `yyyy`, `yy`                                                                  |
 | `maxEntries`     | `number`   | `5`                              | No       | Maximum number of upcoming pickup dates to display                                                                                        |
 | `updateInterval` | `number`   | `86400000` (24 h)                | No       | How often to refresh data from the BSR API, in milliseconds                                                                               |
 | `categories`     | `string[]` | `["BI", "HM", "LT", "WS", "WB"]` | No       | Waste categories to display. Pass a subset to filter. Unknown codes are ignored with a warning. Empty array falls back to all categories. |
+
+> ¹ Either `addressKey` **or** both `street` + `houseNumber` must be provided.
 
 ### Waste categories
 
@@ -236,6 +256,9 @@ npm test              # All tests (unit + property + integration)
 npm run test:unit
 npm run test:property
 npm run test:integration
+
+# Live API tests (requires internet access, skipped by default)
+BSR_LIVE_TESTS=true npx vitest run tests/integration/bsr-api.test.js
 ```
 
 ---
