@@ -107,17 +107,11 @@ Module.register("MMM-BSR-Trash-Calendar", {
       // Icon — use BSR SVG if available, fall back to Font Awesome
       const icon = document.createElement("span");
       icon.className = "bsr-category-icon";
-      icon.style.color = pickup.color;
       if (pickup.svgIcon) {
         icon.innerHTML = pickup.svgIcon;
-        const svg = icon.querySelector("svg");
-        if (svg) {
-          svg.style.width = "1.2em";
-          svg.style.height = "1.2em";
-          svg.style.verticalAlign = "middle";
-        }
       } else {
         icon.classList.add("fa", pickup.icon);
+        icon.style.color = pickup.color;
       }
       entry.appendChild(icon);
 
