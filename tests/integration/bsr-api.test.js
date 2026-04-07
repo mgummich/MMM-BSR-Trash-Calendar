@@ -18,16 +18,19 @@ const TEST_STREET = "Bergmannstr.";
 const TEST_HOUSE_NUMBER = "12";
 
 const ADDRESS_LOOKUP_URL = (street, houseNumber) =>
-  `https://umnewforms.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet` +
+  `https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet` +
   `?searchQuery=${encodeURIComponent(street)}:::${encodeURIComponent(houseNumber)}`;
 
 const CALENDAR_URL = (addressKey, year, month) => {
   const mm = String(month).padStart(2, "0");
+  const lastDay = new Date(year, month, 0).getDate();
+  const dd = String(lastDay).padStart(2, "0");
   return (
-    `https://umnewforms.bsr.de/p/de.bsr.adressen.app/abfuhrEvents` +
+    `https://umapi.bsr.de/p/de.bsr.adressen.app/abfuhrEvents` +
     `?filter=AddrKey eq '${addressKey}'` +
     ` and DateFrom eq datetime'${year}-${mm}-01T00:00:00'` +
-    ` and DateTo eq datetime'${year}-${mm}-01T00:00:00'`
+    ` and DateTo eq datetime'${year}-${mm}-${dd}T00:00:00'` +
+    ` and (Category eq 'HM' or Category eq 'BI' or Category eq 'WS' or Category eq 'LT' or Category eq 'WB')`
   );
 };
 

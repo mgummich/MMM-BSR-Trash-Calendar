@@ -92,7 +92,7 @@ If you already know your BSR address key, you can provide it directly to skip th
 }
 ```
 
-> **Tip:** To find your address key, check the BSR website or look it up once via the address lookup API: `https://umnewforms.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr.:::12`
+> **Tip:** To find your address key, check the BSR website or look it up once via the address lookup API: `https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr.:::12`
 
 ### Full configuration (all options)
 
@@ -144,7 +144,7 @@ If you already know your BSR address key, you can provide it directly to skip th
 
 ## API Dependencies
 
-This module communicates with the BSR public API at `umnewforms.bsr.de`. No API key is required.
+This module communicates with the BSR public API at `umapi.bsr.de`. No API key is required.
 
 ### Endpoints
 
@@ -153,7 +153,7 @@ This module communicates with the BSR public API at `umnewforms.bsr.de`. No API 
 Resolves a street address to a BSR address key (`AddrKey`).
 
 ```
-GET https://umnewforms.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet
+GET https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet
     ?searchQuery={street}:::{houseNumber}
 ```
 
@@ -175,7 +175,7 @@ The module uses `value` from the first result as the address key for subsequent 
 Fetches pickup events for a given address and month.
 
 ```
-GET https://umnewforms.bsr.de/p/de.bsr.adressen.app/abfuhrEvents
+GET https://umapi.bsr.de/p/de.bsr.adressen.app/abfuhrEvents
     ?filter=AddrKey eq '{addressKey}'
       and DateFrom eq datetime'{year}-{month}-01T00:00:00'
       and DateTo eq datetime'{year}-{month}-01T00:00:00'

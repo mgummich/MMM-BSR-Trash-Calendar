@@ -34,7 +34,7 @@ graph TB
             CACHE["cache.json<br/>(Dateibasierter Cache)"]
         end
     end
-    BSR["BSR-API<br/>umnewforms.bsr.de"]
+    BSR["BSR-API<br/>umapi.bsr.de"]
 
     FE -- "BSR_INIT_MODULE<br/>(config)" --> NH
     NH -- "BSR_PICKUP_DATA<br/>(termine)" --> FE
@@ -234,9 +234,9 @@ Definiert Styles für:
 ### BSR-API-Antwort: Adressauflösung
 
 ```typescript
-// GET https://umnewforms.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery={street}:::{houseNumber}
+// GET https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery={street}:::{houseNumber}
 type AddressLookupResponse = Array<{
-  value: string; // AdressSchlüssel (z.B. "10965_Bergmannstr._12")
+  value: string; // AdressSchlüssel (z.B. "049011000102000049800120")
   label: string; // Anzeigename (z.B. "Bergmannstr. 12, 10965 Berlin")
 }>;
 ```
@@ -244,7 +244,7 @@ type AddressLookupResponse = Array<{
 ### BSR-API-Antwort: Abfuhrtermine
 
 ```typescript
-// GET https://umnewforms.bsr.de/p/de.bsr.adressen.app/abfuhrEvents?filter=...
+// GET https://umapi.bsr.de/p/de.bsr.adressen.app/abfuhrEvents?filter=...
 type CalendarEventsResponse = {
   dates: {
     [date: string]: Array<{
@@ -325,10 +325,10 @@ type ModuleConfig = {
 
 ### BSR-API-Endpunkte
 
-| Endpunkt             | URL-Template                                                                                                                                                                                            | Methode | Timeout |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------- |
-| Adressauflösung      | `https://umnewforms.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery={street}:::{houseNumber}`                                                                                                    | GET     | 30s     |
-| Abfuhrtermine (JSON) | `https://umnewforms.bsr.de/p/de.bsr.adressen.app/abfuhrEvents?filter=AddrKey eq '{addressKey}' and DateFrom eq datetime'{year}-{month}-01T00:00:00' and DateTo eq datetime'{year}-{month}-01T00:00:00'` | GET     | 30s     |
+| Endpunkt             | URL-Template                                                                                                                                                                                       | Methode | Timeout |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------- |
+| Adressauflösung      | `https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery={street}:::{houseNumber}`                                                                                                    | GET     | 30s     |
+| Abfuhrtermine (JSON) | `https://umapi.bsr.de/p/de.bsr.adressen.app/abfuhrEvents?filter=AddrKey eq '{addressKey}' and DateFrom eq datetime'{year}-{month}-01T00:00:00' and DateTo eq datetime'{year}-{month}-01T00:00:00'` | GET     | 30s     |
 
 > **Hinweis:** Das Modul verwendet ausschließlich den JSON-Endpunkt für Abfuhrtermine.
 

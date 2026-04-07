@@ -189,7 +189,7 @@ module.exports = NodeHelper.create({
    */
   async resolveAddress(street, houseNumber) {
     const url =
-      `https://umnewforms.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet` +
+      `https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet` +
       `?searchQuery=${encodeURIComponent(street)}:::${encodeURIComponent(houseNumber)}`;
 
     const data = await this.executeApiCall(url);
@@ -210,14 +210,19 @@ module.exports = NodeHelper.create({
     const { getMonthRange, parsePickupDates } = utils;
     const months = getMonthRange(new Date());
     const allDates = [];
+    const CATEGORIES =
+      "Category eq 'HM' or Category eq 'BI' or Category eq 'WS' or Category eq 'LT' or Category eq 'WB'";
 
     for (const { year, month } of months) {
       const mm = String(month).padStart(2, "0");
+      // Last day of the month
+      const lastDay = new Date(year, month, 0).getDate();
       const url =
-        `https://umnewforms.bsr.de/p/de.bsr.adressen.app/abfuhrEvents` +
+        `https://umapi.bsr.de/p/de.bsr.adressen.app/abfuhrEvents` +
         `?filter=AddrKey eq '${addressKey}'` +
         ` and DateFrom eq datetime'${year}-${mm}-01T00:00:00'` +
-        ` and DateTo eq datetime'${year}-${mm}-01T00:00:00'`;
+        ` and DateTo eq datetime'${year}-${mm}-${String(lastDay).padStart(2, "0")}T00:00:00'` +
+        ` and (${CATEGORIES})`;
 
       const data = await this.executeApiCall(url);
       const parsed = parsePickupDates(data);
