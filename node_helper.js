@@ -62,7 +62,7 @@ module.exports = NodeHelper.create({
     this.addressKey = null;
     this.currentData = null;
 
-    Log.info("[MMM-BSR-Trash-Calendar] Node helper started");
+    console.log("[MMM-BSR-Trash-Calendar] Node helper started");
   },
 
   // ---------------------------------------------------------------------------
