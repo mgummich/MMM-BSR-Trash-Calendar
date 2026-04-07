@@ -1,6 +1,6 @@
 # MMM-BSR-Trash-Calendar
 
-A [MagicMirror²](https://magicmirror.builders/) module that displays upcoming trash pickup dates from the Berlin waste management services **BSR** (Berliner Stadtreinigung) and **ALBA** for any configured Berlin address.
+A [MagicMirror²](https://magicmirror.builders/) module that displays upcoming trash pickup dates from the Berlin waste management services **BSR** (Berliner Stadtreinigung) for any configured Berlin address.
 
 ![Module screenshot placeholder](docs/screenshot.png)
 _Screenshot: upcoming pickup dates with color-coded waste categories_
