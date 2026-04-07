@@ -1,0 +1,119 @@
+/* MMM-BSR-Trash-Calendar.css — Stylesheet for MMM-BSR-Trash-Calendar */
+
+/* ── Container ─────────────────────────────────────────────────────────── */
+
+.bsr-trash-calendar {
+  font-size: 0.9em;
+  width: 100%;
+}
+
+/* ── Entry row ─────────────────────────────────────────────────────────── */
+
+.bsr-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.3em 0.4em;
+  border-radius: 4px;
+  margin-bottom: 0.2em;
+  opacity: 0.85;
+}
+
+/* Today: bright highlight */
+.bsr-entry.today {
+  background-color: rgba(255, 255, 255, 0.15);
+  opacity: 1;
+  font-weight: bold;
+  border-left: 3px solid #fff;
+  padding-left: 0.6em;
+}
+
+/* Tomorrow: subtle highlight */
+.bsr-entry.tomorrow {
+  background-color: rgba(255, 255, 255, 0.07);
+  opacity: 1;
+  border-left: 3px solid rgba(255, 255, 255, 0.4);
+  padding-left: 0.6em;
+}
+
+/* ── Category icon ─────────────────────────────────────────────────────── */
+/* Color is set inline via pickup.color (CATEGORY_MAP) */
+
+.bsr-category-icon {
+  width: 1.2em;
+  text-align: center;
+  flex-shrink: 0;
+  /* Individual category colors applied via inline style from CATEGORY_MAP:
+     BI (Biogut)        → #8B4513
+     HM (Hausmüll)      → #808080
+     LT (Laubtonne)     → #228B22
+     WS (Wertstoffe)    → #FFD700
+     WB (Weihnachtsbaum)→ #006400 */
+}
+
+/* ── Category name ─────────────────────────────────────────────────────── */
+
+.bsr-category-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Date ──────────────────────────────────────────────────────────────── */
+
+.bsr-date {
+  flex-shrink: 0;
+  color: #aaa;
+  font-size: 0.9em;
+}
+
+.bsr-entry.today .bsr-date,
+.bsr-entry.tomorrow .bsr-date {
+  color: #fff;
+}
+
+/* ── Disposal company ──────────────────────────────────────────────────── */
+
+.bsr-disposal {
+  flex-shrink: 0;
+  font-size: 0.75em;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* ── Warning notice ────────────────────────────────────────────────────── */
+
+.bsr-warning {
+  font-size: 0.78em;
+  color: #f0a500;
+  padding: 0.15em 0.4em 0.3em 2.2em;
+  font-style: italic;
+}
+
+/* ── Error message ─────────────────────────────────────────────────────── */
+
+.bsr-error {
+  color: #e74c3c;
+  font-size: 0.9em;
+  padding: 0.3em 0;
+}
+
+/* ── Loading message ───────────────────────────────────────────────────── */
+
+.bsr-loading {
+  color: #aaa;
+  font-style: italic;
+  font-size: 0.9em;
+  padding: 0.3em 0;
+}
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+
+.bsr-empty {
+  color: #aaa;
+  font-style: italic;
+  font-size: 0.9em;
+  padding: 0.3em 0;
+}
