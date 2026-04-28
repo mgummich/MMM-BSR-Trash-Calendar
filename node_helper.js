@@ -192,6 +192,10 @@ module.exports = NodeHelper.create({
       return;
     }
 
+    const berlinRecyclingDates = await this.fetchBerlinRecyclingDates();
+    const { mergeProviderDates } = await import("./providers/merge.js");
+    dates = mergeProviderDates([dates, berlinRecyclingDates], this.config.categories);
+
     // 6. Success
     this.handleApiSuccess(dates);
   },
@@ -222,18 +226,55 @@ module.exports = NodeHelper.create({
   },
 
   /**
+   * Fetches Berlin Recycling dates via portal or public fallback.
+   * @returns {Promise<Array>}
+   */
+  async fetchBerlinRecyclingDates() {
+    if (!this.config.berlinRecycling?.enabled) {
+      return [];
+    }
+
+    const brConfig = this.config.berlinRecycling;
+
+    if (brConfig.usePortal) {
+      try {
+        const { fetchBerlinRecyclingPortalDates } =
+          await import("./providers/berlinRecyclingPortal.js");
+        return await fetchBerlinRecyclingPortalDates(this.executeApiCall.bind(this), {
+          username: process.env.BERLIN_RECYCLING_USERNAME,
+          password: process.env.BERLIN_RECYCLING_PASSWORD,
+        });
+      } catch (err) {
+        console.warn("[MMM-BSR-Trash-Calendar] Berlin Recycling portal fetch failed:", err.message);
+      }
+    }
+
+    if (brConfig.usePublicFallback) {
+      try {
+        const { fetchBerlinRecyclingPublicDates } =
+          await import("./providers/berlinRecyclingPublic.js");
+        return await fetchBerlinRecyclingPublicDates(this.executeApiCall.bind(this), this.config);
+      } catch (err) {
+        console.warn("[MMM-BSR-Trash-Calendar] Berlin Recycling public fetch failed:", err.message);
+      }
+    }
+
+    return [];
+  },
+
+  /**
    * Executes a single HTTP GET with a 30-second timeout.
    * @param {string} url
    * @returns {Promise<object>} Parsed JSON response
    */
-  async executeApiCall(url) {
+  async executeApiCall(url, options = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       // node-fetch is an ESM-only package in v3; use dynamic import
       const { default: fetch } = await import("node-fetch");
-      const res = await fetch(url, { signal: controller.signal });
+      const res = await fetch(url, { ...options, signal: controller.signal });
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
