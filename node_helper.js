@@ -207,17 +207,8 @@ module.exports = NodeHelper.create({
    * @returns {Promise<string|null>} Address key, or null if not found
    */
   async resolveAddress(street, houseNumber) {
-    const url =
-      `https://umnewforms.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet` +
-      `?searchQuery=${encodeURIComponent(street)}:::${encodeURIComponent(houseNumber)}`;
-
-    const data = await this.executeApiCall(url);
-
-    if (!Array.isArray(data) || data.length === 0) {
-      return null;
-    }
-
-    return data[0].value;
+    const { resolveBsrAddress } = await import("./providers/bsr.js");
+    return resolveBsrAddress(this.executeApiCall.bind(this), street, houseNumber);
   },
 
   /**
@@ -226,24 +217,8 @@ module.exports = NodeHelper.create({
    * @returns {Promise<Array>} Combined, parsed pickup dates
    */
   async fetchPickupDates(addressKey) {
-    const { getMonthRange, parsePickupDates } = this._utils;
-    const months = getMonthRange(new Date());
-    const allDates = [];
-
-    for (const { year, month } of months) {
-      const mm = String(month).padStart(2, "0");
-      const url =
-        `https://umnewforms.bsr.de/p/de.bsr.adressen.app/abfuhrEvents` +
-        `?filter=AddrKey eq '${addressKey}'` +
-        ` and DateFrom eq datetime'${year}-${mm}-01T00:00:00'` +
-        ` and DateTo eq datetime'${year}-${mm}-01T00:00:00'`;
-
-      const data = await this.executeApiCall(url);
-      const parsed = parsePickupDates(data);
-      allDates.push(...parsed);
-    }
-
-    return allDates;
+    const { fetchBsrPickupDates } = await import("./providers/bsr.js");
+    return fetchBsrPickupDates(this.executeApiCall.bind(this), this._utils, addressKey);
   },
 
   /**
