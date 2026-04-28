@@ -1,4 +1,5 @@
 node_modules/
+.worktrees/
 cache.json
 .DS_Store
 Thumbs.db
