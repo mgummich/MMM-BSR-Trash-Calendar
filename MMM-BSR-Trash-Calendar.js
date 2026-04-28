@@ -15,6 +15,11 @@ Module.register("MMM-BSR-Trash-Calendar", {
     maxEntries: 5,
     updateInterval: 86400000,
     categories: ["BI", "HM", "LT", "WS", "WB"],
+    berlinRecycling: {
+      enabled: false,
+      usePortal: true,
+      usePublicFallback: true,
+    },
   },
 
   /**

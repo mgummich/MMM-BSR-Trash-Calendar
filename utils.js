@@ -11,6 +11,9 @@ export const CATEGORY_MAP = {
   LT: { name: "Laubtonne", color: "#228B22", icon: "fa-leaf" },
   WS: { name: "Wertstoffe", color: "#FFD700", icon: "fa-recycle" },
   WB: { name: "Weihnachtsbaum", color: "#006400", icon: "fa-tree" },
+  PP: { name: "Papier", color: "#1E88E5", icon: "fa-newspaper" },
+  GL: { name: "Glas", color: "#43A047", icon: "fa-wine-bottle" },
+  GW: { name: "Gewerbeabfall", color: "#6D4C41", icon: "fa-dumpster" },
 };
 
 /**
@@ -168,6 +171,12 @@ export function validateConfig(config) {
     return { error: `Missing required parameters: ${missing.join(", ")}` };
   }
 
+  const berlinRecycling = {
+    enabled: config.berlinRecycling?.enabled ?? false,
+    usePortal: config.berlinRecycling?.usePortal ?? true,
+    usePublicFallback: config.berlinRecycling?.usePublicFallback ?? true,
+  };
+
   return {
     config: {
       ...config,
@@ -175,6 +184,7 @@ export function validateConfig(config) {
       maxEntries: config.maxEntries ?? 5,
       updateInterval: config.updateInterval ?? 86400000,
       categories: sanitizeCategories(config.categories ?? []),
+      berlinRecycling,
     },
   };
 }

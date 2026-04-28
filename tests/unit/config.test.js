@@ -7,7 +7,7 @@
 import { describe, it, expect } from "vitest";
 import { validateConfig, sanitizeCategories } from "../../utils.js";
 
-const VALID_CATEGORIES = ["BI", "HM", "LT", "WS", "WB"];
+const VALID_CATEGORIES_WITH_BR = ["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"];
 
 describe("validateConfig", () => {
   // BDD-Szenario 24: Pflicht-Parameter fehlen
@@ -65,7 +65,7 @@ describe("validateConfig", () => {
       expect(result.config.dateFormat).toBe("dd.MM.yyyy");
       expect(result.config.maxEntries).toBe(5);
       expect(result.config.updateInterval).toBe(86400000);
-      expect(result.config.categories).toEqual(VALID_CATEGORIES);
+      expect(result.config.categories).toEqual(VALID_CATEGORIES_WITH_BR);
     });
 
     it("should preserve provided optional values and not override them with defaults", () => {
@@ -87,6 +87,33 @@ describe("validateConfig", () => {
       expect(result.config.dateFormat).toBe("MM/dd/yyyy");
       expect(result.config.maxEntries).toBe(10);
       expect(result.config.updateInterval).toBe(3600000);
+    });
+  });
+
+  describe("berlinRecycling config", () => {
+    it("defaults Berlin Recycling to disabled", () => {
+      const result = validateConfig({ street: "Bergmannstr.", houseNumber: "12" });
+
+      expect(result.error).toBeUndefined();
+      expect(result.config.berlinRecycling).toEqual({
+        enabled: false,
+        usePortal: true,
+        usePublicFallback: true,
+      });
+    });
+
+    it("preserves explicit Berlin Recycling settings", () => {
+      const result = validateConfig({
+        street: "Bergmannstr.",
+        houseNumber: "12",
+        berlinRecycling: { enabled: true, usePortal: false, usePublicFallback: true },
+      });
+
+      expect(result.config.berlinRecycling).toEqual({
+        enabled: true,
+        usePortal: false,
+        usePublicFallback: true,
+      });
     });
   });
 });
@@ -117,7 +144,7 @@ describe("sanitizeCategories", () => {
       const result = sanitizeCategories(categories);
 
       // Then: Returns all valid categories as fallback
-      expect(result).toEqual(VALID_CATEGORIES);
+      expect(result).toEqual(VALID_CATEGORIES_WITH_BR);
     });
 
     it("should return all valid categories as fallback when all entries are invalid", () => {
@@ -128,7 +155,7 @@ describe("sanitizeCategories", () => {
       const result = sanitizeCategories(categories);
 
       // Then: Returns all valid categories as fallback
-      expect(result).toEqual(VALID_CATEGORIES);
+      expect(result).toEqual(VALID_CATEGORIES_WITH_BR);
     });
   });
 

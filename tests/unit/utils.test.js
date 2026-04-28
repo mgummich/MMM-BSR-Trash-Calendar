@@ -11,6 +11,7 @@ import {
   isCacheAddressMatch,
   loadCache,
   saveCache,
+  sanitizeCategories,
 } from "../../utils.js";
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,21 @@ function formatToApiDate(iso) {
 
 // Use a fixed "today" in the future so all test dates are treated as upcoming.
 const FAR_FUTURE_TODAY = "2000-01-01";
+
+describe("Berlin Recycling categories", () => {
+  it("supports Papier, Glas, and Gewerbeabfall display metadata", () => {
+    expect(getCategoryDisplay("PP")).toMatchObject({ name: "Papier", icon: "fa-newspaper" });
+    expect(getCategoryDisplay("GL")).toMatchObject({ name: "Glas", icon: "fa-wine-bottle" });
+    expect(getCategoryDisplay("GW")).toMatchObject({
+      name: "Gewerbeabfall",
+      icon: "fa-dumpster",
+    });
+  });
+
+  it("allows Berlin Recycling categories in category filtering", () => {
+    expect(sanitizeCategories(["HM", "PP", "GL"])).toEqual(["HM", "PP", "GL"]);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // BDD-Szenario 3: Termine aufsteigend sortiert
