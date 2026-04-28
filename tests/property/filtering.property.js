@@ -12,7 +12,7 @@ import { describe, it } from "vitest";
 import * as fc from "fast-check";
 import { filterByCategories, sanitizeCategories } from "../../utils.js";
 
-const VALID_CATEGORIES = ["BI", "HM", "LT", "WS", "WB"];
+const VALID_CATEGORIES = ["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"];
 
 // Arbitraries
 
@@ -38,7 +38,7 @@ const pickupDatesArb = fc.array(
 
 /** Generates a non-empty subset of valid categories */
 const categorySubsetArb = fc
-  .array(fc.constantFrom(...VALID_CATEGORIES), { minLength: 1, maxLength: 5 })
+  .array(fc.constantFrom(...VALID_CATEGORIES), { minLength: 1, maxLength: 8 })
   .map((arr) => [...new Set(arr)]);
 
 // ---------------------------------------------------------------------------
