@@ -25,6 +25,7 @@
 ## Task 1: Config and Category Support
 
 **Files:**
+
 - Modify: `utils.js`
 - Modify: `MMM-BSR-Trash-Calendar.js`
 - Test: `tests/unit/config.test.js`
@@ -127,6 +128,7 @@ git commit -m "feat: add berlin recycling config categories"
 ## Task 2: Merge and Deduplication Utility
 
 **Files:**
+
 - Create: `providers/merge.js`
 - Test: `tests/unit/provider-merge.test.js`
 - Test: `tests/property/provider-merge.property.js`
@@ -148,7 +150,14 @@ describe("mergeProviderDates", () => {
       { ...base, date: "2099-03-02", category: "HM", disposalCompany: "BSR", provider: "BSR" },
     ];
     const br = [
-      { ...base, date: "2099-02-01", category: "PP", categoryName: "Papier", disposalCompany: "Berlin Recycling", provider: "BERLIN_RECYCLING" },
+      {
+        ...base,
+        date: "2099-02-01",
+        category: "PP",
+        categoryName: "Papier",
+        disposalCompany: "Berlin Recycling",
+        provider: "BERLIN_RECYCLING",
+      },
     ];
 
     expect(mergeProviderDates([bsr, br], ["HM", "PP"]).map((d) => d.date)).toEqual([
@@ -172,16 +181,18 @@ describe("Provider merge properties", () => {
   it("never returns categories outside configured categories", () => {
     fc.assert(
       fc.property(
-        fc.array(fc.record({
-          date: fc.constantFrom("2099-01-01", "2099-01-02"),
-          category: fc.constantFrom("HM", "PP", "GL"),
-          categoryName: fc.string(),
-          color: fc.string(),
-          icon: fc.string(),
-          disposalCompany: fc.constantFrom("BSR", "Berlin Recycling"),
-          warningText: fc.string(),
-          provider: fc.constantFrom("BSR", "BERLIN_RECYCLING"),
-        })),
+        fc.array(
+          fc.record({
+            date: fc.constantFrom("2099-01-01", "2099-01-02"),
+            category: fc.constantFrom("HM", "PP", "GL"),
+            categoryName: fc.string(),
+            color: fc.string(),
+            icon: fc.string(),
+            disposalCompany: fc.constantFrom("BSR", "Berlin Recycling"),
+            warningText: fc.string(),
+            provider: fc.constantFrom("BSR", "BERLIN_RECYCLING"),
+          })
+        ),
         (dates) => mergeProviderDates([dates], ["PP"]).every((d) => d.category === "PP")
       )
     );
@@ -236,6 +247,7 @@ git commit -m "feat: add provider date merge utility"
 ## Task 3: Extract BSR Provider
 
 **Files:**
+
 - Create: `providers/bsr.js`
 - Modify: `node_helper.js`
 - Test: `tests/unit/bsr-provider.test.js`
@@ -253,7 +265,9 @@ import * as utils from "../../utils.js";
 describe("BSR provider", () => {
   it("resolves first address value", async () => {
     const execute = vi.fn().mockResolvedValue([{ value: "10965_Bergmannstr._12" }]);
-    await expect(resolveBsrAddress(execute, "Bergmannstr.", "12")).resolves.toBe("10965_Bergmannstr._12");
+    await expect(resolveBsrAddress(execute, "Bergmannstr.", "12")).resolves.toBe(
+      "10965_Bergmannstr._12"
+    );
   });
 
   it("returns null for empty address result", async () => {
@@ -263,7 +277,12 @@ describe("BSR provider", () => {
 
   it("fetches current and next month and parses dates", async () => {
     const execute = vi.fn().mockResolvedValue({ dates: {} });
-    const parsed = await fetchBsrPickupDates(execute, utils, "addr-key", new Date("2099-12-15T00:00:00Z"));
+    const parsed = await fetchBsrPickupDates(
+      execute,
+      utils,
+      "addr-key",
+      new Date("2099-12-15T00:00:00Z")
+    );
 
     expect(parsed).toEqual([]);
     expect(execute).toHaveBeenCalledTimes(2);
@@ -332,6 +351,7 @@ git commit -m "refactor: extract bsr provider"
 ## Task 4: Berlin Recycling Public Provider
 
 **Files:**
+
 - Create: `providers/berlinRecyclingPublic.js`
 - Test: `tests/unit/berlin-recycling-public.test.js`
 
@@ -341,7 +361,10 @@ Create `tests/unit/berlin-recycling-public.test.js`:
 
 ```js
 import { describe, it, expect, vi } from "vitest";
-import { fetchBerlinRecyclingPublicDates, parseBerlinRecyclingPublicDates } from "../../providers/berlinRecyclingPublic.js";
+import {
+  fetchBerlinRecyclingPublicDates,
+  parseBerlinRecyclingPublicDates,
+} from "../../providers/berlinRecyclingPublic.js";
 
 describe("Berlin Recycling public provider", () => {
   it("parses public tenant appointments into PickupDate objects", () => {
@@ -353,8 +376,18 @@ describe("Berlin Recycling public provider", () => {
     };
 
     expect(parseBerlinRecyclingPublicDates(response, "2000-01-01")).toMatchObject([
-      { date: "2099-04-01", category: "PP", disposalCompany: "Berlin Recycling", provider: "BERLIN_RECYCLING" },
-      { date: "2099-04-03", category: "GL", disposalCompany: "Berlin Recycling", provider: "BERLIN_RECYCLING" },
+      {
+        date: "2099-04-01",
+        category: "PP",
+        disposalCompany: "Berlin Recycling",
+        provider: "BERLIN_RECYCLING",
+      },
+      {
+        date: "2099-04-03",
+        category: "GL",
+        disposalCompany: "Berlin Recycling",
+        provider: "BERLIN_RECYCLING",
+      },
     ]);
   });
 
@@ -390,26 +423,33 @@ const FRACTION_TO_CATEGORY = {
 };
 
 export function mapBerlinRecyclingCategory(value) {
-  const key = String(value || "").trim().toLowerCase();
+  const key = String(value || "")
+    .trim()
+    .toLowerCase();
   return FRACTION_TO_CATEGORY[key] ?? null;
 }
 
-export function parseBerlinRecyclingPublicDates(response, today = new Date().toISOString().slice(0, 10)) {
+export function parseBerlinRecyclingPublicDates(
+  response,
+  today = new Date().toISOString().slice(0, 10)
+) {
   const rows = Array.isArray(response?.dates) ? response.dates : [];
   const dates = rows.flatMap((row) => {
     const category = mapBerlinRecyclingCategory(row.fraction || row.category || row.type);
     if (!category || !row.date) return [];
     const display = getCategoryDisplay(category);
-    return [{
-      date: row.date,
-      category,
-      categoryName: display.name,
-      color: display.color,
-      icon: display.icon,
-      disposalCompany: "Berlin Recycling",
-      warningText: row.warningText ?? "",
-      provider: "BERLIN_RECYCLING",
-    }];
+    return [
+      {
+        date: row.date,
+        category,
+        categoryName: display.name,
+        color: display.color,
+        icon: display.icon,
+        disposalCompany: "Berlin Recycling",
+        warningText: row.warningText ?? "",
+        provider: "BERLIN_RECYCLING",
+      },
+    ];
   });
   return sortByDate(filterPastDates(dates, today));
 }
@@ -439,6 +479,7 @@ git commit -m "feat: add berlin recycling public provider"
 ## Task 5: Berlin Recycling Portal Provider
 
 **Files:**
+
 - Create: `providers/berlinRecyclingPortal.js`
 - Test: `tests/unit/berlin-recycling-portal.test.js`
 
@@ -448,11 +489,16 @@ Create `tests/unit/berlin-recycling-portal.test.js`:
 
 ```js
 import { describe, it, expect, vi } from "vitest";
-import { fetchBerlinRecyclingPortalDates, parseBerlinRecyclingPortalDates } from "../../providers/berlinRecyclingPortal.js";
+import {
+  fetchBerlinRecyclingPortalDates,
+  parseBerlinRecyclingPortalDates,
+} from "../../providers/berlinRecyclingPortal.js";
 
 describe("Berlin Recycling portal provider", () => {
   it("requires username and password", async () => {
-    await expect(fetchBerlinRecyclingPortalDates(vi.fn(), { username: "", password: "" })).rejects.toMatchObject({
+    await expect(
+      fetchBerlinRecyclingPortalDates(vi.fn(), { username: "", password: "" })
+    ).rejects.toMatchObject({
       type: "BR_AUTH_FAILED",
     });
   });
@@ -493,26 +539,34 @@ Expected: FAIL because provider missing.
 Create `providers/berlinRecyclingPortal.js`:
 
 ```js
-import { parseBerlinRecyclingPublicDates, mapBerlinRecyclingCategory } from "./berlinRecyclingPublic.js";
+import {
+  parseBerlinRecyclingPublicDates,
+  mapBerlinRecyclingCategory,
+} from "./berlinRecyclingPublic.js";
 import { getCategoryDisplay, sortByDate, filterPastDates } from "../utils.js";
 
-export function parseBerlinRecyclingPortalDates(response, today = new Date().toISOString().slice(0, 10)) {
+export function parseBerlinRecyclingPortalDates(
+  response,
+  today = new Date().toISOString().slice(0, 10)
+) {
   if (Array.isArray(response?.dates)) return parseBerlinRecyclingPublicDates(response, today);
   const rows = Array.isArray(response?.appointments) ? response.appointments : [];
   const dates = rows.flatMap((row) => {
     const category = mapBerlinRecyclingCategory(row.material || row.fraction || row.category);
     if (!category || !row.date) return [];
     const display = getCategoryDisplay(category);
-    return [{
-      date: row.date,
-      category,
-      categoryName: display.name,
-      color: display.color,
-      icon: display.icon,
-      disposalCompany: "Berlin Recycling",
-      warningText: row.note ?? row.warningText ?? "",
-      provider: "BERLIN_RECYCLING",
-    }];
+    return [
+      {
+        date: row.date,
+        category,
+        categoryName: display.name,
+        color: display.color,
+        icon: display.icon,
+        disposalCompany: "Berlin Recycling",
+        warningText: row.note ?? row.warningText ?? "",
+        provider: "BERLIN_RECYCLING",
+      },
+    ];
   });
   return sortByDate(filterPastDates(dates, today));
 }
@@ -534,9 +588,12 @@ export async function fetchBerlinRecyclingPortalDates(executeApiCall, credential
     error.type = "BR_AUTH_FAILED";
     throw error;
   }
-  const calendar = await executeApiCall("https://www.berlin-recycling.de/kundenportal/abfuhrkalender", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const calendar = await executeApiCall(
+    "https://www.berlin-recycling.de/kundenportal/abfuhrkalender",
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
   return parseBerlinRecyclingPortalDates(calendar);
 }
 ```
@@ -557,6 +614,7 @@ git commit -m "feat: add berlin recycling portal provider"
 ## Task 6: Provider Orchestration in Node Helper
 
 **Files:**
+
 - Modify: `node_helper.js`
 - Test: `tests/integration/berlin-recycling.test.js`
 
@@ -678,6 +736,7 @@ git commit -m "feat: merge berlin recycling provider dates"
 ## Task 7: Documentation
 
 **Files:**
+
 - Modify: `README.md`
 - Modify: `AGENTS.md` only if contributor commands changed; otherwise do not touch.
 
@@ -736,6 +795,7 @@ git commit -m "docs: document berlin recycling setup"
 ## Task 8: Final Verification
 
 **Files:**
+
 - Check all changed files.
 
 - [ ] **Step 1: Run full verification**

@@ -94,21 +94,27 @@ npm run start
     dateFormat: "dd.MM.yyyy",
     maxEntries: 5,
     updateInterval: 86400000,
-    categories: ["BI", "HM", "LT", "WS", "WB"]
+    categories: ["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"],
+    berlinRecycling: {
+      enabled: false,
+      usePortal: true,
+      usePublicFallback: true
+    }
   }
 }
 ```
 
 ### Parameter reference
 
-| Parameter        | Type       | Default                          | Required | Description                                                                                                                               |
-| ---------------- | ---------- | -------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `street`         | `string`   | —                                | ✅ Yes   | Street name as used by BSR (e.g. `"Bergmannstr."`, `"Oranienstr."`)                                                                       |
-| `houseNumber`    | `string`   | —                                | ✅ Yes   | House number (e.g. `"12"`, `"4a"`)                                                                                                        |
-| `dateFormat`     | `string`   | `"dd.MM.yyyy"`                   | No       | Date format for pickup dates. Supported tokens: `dd`, `MM`, `yyyy`, `yy`                                                                  |
-| `maxEntries`     | `number`   | `5`                              | No       | Maximum number of upcoming pickup dates to display                                                                                        |
-| `updateInterval` | `number`   | `86400000` (24 h)                | No       | How often to refresh data from the BSR API, in milliseconds                                                                               |
-| `categories`     | `string[]` | `["BI", "HM", "LT", "WS", "WB"]` | No       | Waste categories to display. Pass a subset to filter. Unknown codes are ignored with a warning. Empty array falls back to all categories. |
+| Parameter         | Type       | Default                                                        | Required | Description                                                                                                                               |
+| ----------------- | ---------- | -------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `street`          | `string`   | —                                                              | ✅ Yes   | Street name as used by BSR (e.g. `"Bergmannstr."`, `"Oranienstr."`)                                                                       |
+| `houseNumber`     | `string`   | —                                                              | ✅ Yes   | House number (e.g. `"12"`, `"4a"`)                                                                                                        |
+| `dateFormat`      | `string`   | `"dd.MM.yyyy"`                                                 | No       | Date format for pickup dates. Supported tokens: `dd`, `MM`, `yyyy`, `yy`                                                                  |
+| `maxEntries`      | `number`   | `5`                                                            | No       | Maximum number of upcoming pickup dates to display                                                                                        |
+| `updateInterval`  | `number`   | `86400000` (24 h)                                              | No       | How often to refresh data from the APIs, in milliseconds                                                                                  |
+| `categories`      | `string[]` | `["BI", "HM", "LT", "WS", "WB", "PP", ...]`                    | No       | Waste categories to display. Pass a subset to filter. Unknown codes are ignored with a warning. Empty array falls back to all categories. |
+| `berlinRecycling` | `object`   | `{ enabled: false, usePortal: true, usePublicFallback: true }` | No       | Optional Berlin Recycling provider. Portal credentials are read from environment variables.                                               |
 
 ### Waste categories
 
@@ -119,12 +125,39 @@ npm run start
 | `LT` | Laubtonne      | Green      | 🍃 `fa-leaf`     |
 | `WS` | Wertstoffe     | Yellow     | ♻️ `fa-recycle`  |
 | `WB` | Weihnachtsbaum | Dark green | 🎄 `fa-tree`     |
+| `PP` | Papier         | Blue       | `fa-newspaper`   |
+| `GL` | Glas           | Green      | `fa-wine-bottle` |
+| `GW` | Gewerbeabfall  | Brown      | `fa-dumpster`    |
+
+### Berlin Recycling
+
+Enable the additional Berlin Recycling provider in `config.js`:
+
+```javascript
+berlinRecycling: {
+  enabled: true,
+  usePortal: true,
+  usePublicFallback: true
+}
+```
+
+Portal credentials are optional and read from environment variables:
+
+```bash
+BERLIN_RECYCLING_USERNAME=your-login
+BERLIN_RECYCLING_PASSWORD=your-password
+```
+
+If portal login is unavailable and `usePublicFallback` is enabled, the module tries the
+public tenant street-search calendar. Credentials are never written to `cache.json`.
 
 ---
 
 ## API Dependencies
 
 This module communicates with the BSR public API at `umnewforms.bsr.de`. No API key is required.
+When enabled, it can also query Berlin Recycling through the customer portal or public
+tenant street-search calendar.
 
 ### Endpoints
 
