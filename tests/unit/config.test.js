@@ -123,6 +123,7 @@ describe("validateConfig", () => {
       expect(result.config.dateFormat).toBe("dd.MM.yyyy");
       expect(result.config.maxEntries).toBe(5);
       expect(result.config.updateInterval).toBe(86400000);
+      expect(result.config.debug).toBe(false);
       expect(result.config.categories).toEqual(VALID_CATEGORIES_WITH_BR);
     });
 
@@ -134,6 +135,7 @@ describe("validateConfig", () => {
         dateFormat: "MM/dd/yyyy",
         maxEntries: 10,
         updateInterval: 3600000,
+        debug: true,
         categories: ["HM", "WS"],
       };
 
@@ -145,6 +147,7 @@ describe("validateConfig", () => {
       expect(result.config.dateFormat).toBe("MM/dd/yyyy");
       expect(result.config.maxEntries).toBe(10);
       expect(result.config.updateInterval).toBe(3600000);
+      expect(result.config.debug).toBe(true);
     });
   });
 

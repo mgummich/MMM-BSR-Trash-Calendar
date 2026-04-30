@@ -14,6 +14,7 @@ Module.register("MMM-BSR-Trash-Calendar", {
     dateFormat: "dd.MM.yyyy",
     maxEntries: 5,
     updateInterval: 86400000,
+    debug: false,
     categories: ["BI", "HM", "LT", "WS", "WB"],
     berlinRecycling: {
       enabled: false,

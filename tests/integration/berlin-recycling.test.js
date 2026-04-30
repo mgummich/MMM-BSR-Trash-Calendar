@@ -89,6 +89,7 @@ describe("Berlin Recycling node_helper orchestration", () => {
 
   beforeEach(() => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -150,5 +151,27 @@ describe("Berlin Recycling node_helper orchestration", () => {
     expect(data).toHaveLength(1);
     expect(data[0]).toMatchObject({ category: "HM", disposalCompany: "BSR" });
     expect(notifications.some((n) => n.notification === "BSR_ERROR")).toBe(false);
+  });
+
+  it("writes detailed debug logs when debug config is enabled", async () => {
+    process.env.BERLIN_RECYCLING_USERNAME = "";
+    process.env.BERLIN_RECYCLING_PASSWORD = "";
+    const executeApiCall = vi
+      .fn()
+      .mockResolvedValueOnce(bsrAddressResponse())
+      .mockResolvedValueOnce(bsrCalendarResponse())
+      .mockResolvedValueOnce({ dates: {} })
+      .mockResolvedValueOnce(brPublicResponse());
+    const { helper } = setupHelper({ executeApiCall });
+
+    await helper.socketNotificationReceived("BSR_INIT_MODULE", {
+      ...VALID_CONFIG,
+      debug: true,
+    });
+
+    const debugMessages = console.log.mock.calls.map((call) => call.join(" ")).join("\n");
+    expect(debugMessages).toContain("DEBUG Config accepted");
+    expect(debugMessages).toContain("DEBUG Fetching BSR pickup dates");
+    expect(debugMessages).toContain("DEBUG Merged and filtered");
   });
 });

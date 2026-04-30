@@ -49,6 +49,20 @@ module.exports = NodeHelper.create({
   /** @type {Array|null} Last successfully fetched pickup dates */
   currentData: null,
 
+  log(message) {
+    console.log(`[MMM-BSR-Trash-Calendar] ${message}`);
+  },
+
+  debug(message) {
+    if (this.config?.debug) {
+      this.log(`DEBUG ${message}`);
+    }
+  },
+
+  warn(message) {
+    console.warn(`[MMM-BSR-Trash-Calendar] ${message}`);
+  },
+
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
@@ -66,7 +80,7 @@ module.exports = NodeHelper.create({
     this.addressKey = null;
     this.currentData = null;
 
-    console.log("[MMM-BSR-Trash-Calendar] Node helper started");
+    this.log("Node helper started");
   },
 
   // ---------------------------------------------------------------------------
@@ -88,6 +102,7 @@ module.exports = NodeHelper.create({
     // 1. Validate configuration
     const validation = validateConfig(payload);
     if (validation.error) {
+      this.warn(`Configuration error: ${validation.error}`);
       this.sendSocketNotification("BSR_ERROR", {
         message: validation.error,
         type: "CONFIG_ERROR",
@@ -96,9 +111,16 @@ module.exports = NodeHelper.create({
     }
 
     this.config = validation.config;
+    this.debug(
+      `Config accepted: addressKey=${this.config.addressKey ? "yes" : "no"}, ` +
+        `street=${this.config.street || "-"}, maxEntries=${this.config.maxEntries}, ` +
+        `categories=${this.config.categories.join(",")}, ` +
+        `berlinRecycling=${this.config.berlinRecycling.enabled ? "enabled" : "disabled"}`
+    );
 
     // 2. Concurrency Guard — ignore if a fetch cycle is already running
     if (this.requestLock) {
+      this.debug("Fetch already running; ignoring duplicate init/update request");
       return;
     }
     this.requestLock = true;
@@ -120,11 +142,13 @@ module.exports = NodeHelper.create({
    */
   async _fetchAndUpdate() {
     const { isCacheValid, isCacheAddressMatch } = utils;
+    this.debug("Fetch cycle started");
 
     // 3. Load cache
     const cache = this.loadCache();
 
     if (cache && isCacheAddressMatch(cache, this.config)) {
+      this.debug(`Cache hit for current address with ${cache.pickupDates.length} dates`);
       // Cache exists and address matches → send cached data immediately
       this.addressKey = cache.addressKey;
       this.currentData = cache.pickupDates;
@@ -132,24 +156,31 @@ module.exports = NodeHelper.create({
 
       // If cache is still valid → schedule next update and stop
       if (isCacheValid(cache, this.config, Date.now(), this.config.updateInterval)) {
+        this.debug("Cache valid; using cached data and scheduling next update");
         this.scheduleUpdate(this.config.updateInterval);
         return;
       }
+      this.debug("Cache stale; refreshing provider data");
       // Otherwise fall through to refresh
     } else if (cache && !isCacheAddressMatch(cache, this.config)) {
+      this.debug("Cache address mismatch; discarding cached address/data");
       // Address changed → discard cache, re-resolve
       this.addressKey = null;
       this.currentData = null;
+    } else {
+      this.debug("No cache available");
     }
 
     // 4. Resolve address if we don't have one yet
     if (!this.addressKey) {
       // Use directly configured addressKey if provided, skip API lookup
       if (this.config.addressKey) {
+        this.debug("Using configured BSR addressKey; skipping address lookup");
         this.addressKey = this.config.addressKey;
       } else {
         let key;
         try {
+          this.debug(`Resolving BSR address for ${this.config.street} ${this.config.houseNumber}`);
           key = await this.resolveAddress(this.config.street, this.config.houseNumber);
         } catch (err) {
           this.handleApiError(err);
@@ -157,6 +188,7 @@ module.exports = NodeHelper.create({
         }
 
         if (!key) {
+          this.warn(`BSR address not found for ${this.config.street} ${this.config.houseNumber}`);
           this.sendSocketNotification("BSR_ERROR", {
             message: "Adresse nicht gefunden",
             type: "ADDRESS_NOT_FOUND",
@@ -165,20 +197,25 @@ module.exports = NodeHelper.create({
         }
 
         this.addressKey = key;
+        this.debug("BSR address resolved");
       }
     }
 
     // 5. Fetch pickup dates for current + next month
     let dates;
     try {
+      this.debug("Fetching BSR pickup dates");
       dates = await this.fetchPickupDates(this.addressKey);
+      this.debug(`BSR returned ${dates.length} dates`);
     } catch (err) {
       this.handleApiError(err);
       return;
     }
 
     const berlinRecyclingDates = await this.fetchBerlinRecyclingDates();
+    this.debug(`Berlin Recycling returned ${berlinRecyclingDates.length} dates`);
     dates = mergeProviderDates([dates, berlinRecyclingDates], this.config.categories);
+    this.debug(`Merged and filtered to ${dates.length} dates`);
 
     // 6. Success
     this.handleApiSuccess(dates);
@@ -213,37 +250,51 @@ module.exports = NodeHelper.create({
    */
   async fetchBerlinRecyclingDates() {
     if (!this.config.berlinRecycling?.enabled) {
+      this.debug("Berlin Recycling disabled");
       return [];
     }
 
     const brConfig = this.config.berlinRecycling;
+    this.debug(
+      `Berlin Recycling enabled: portal=${brConfig.usePortal ? "on" : "off"}, ` +
+        `fallback=${brConfig.usePublicFallback ? "on" : "off"}`
+    );
 
     if (brConfig.usePortal) {
       try {
+        this.debug(
+          `Trying Berlin Recycling portal; credentials=${
+            process.env.BERLIN_RECYCLING_USERNAME && process.env.BERLIN_RECYCLING_PASSWORD
+              ? "present"
+              : "missing"
+          }`
+        );
         return await fetchBerlinRecyclingPortalDates(this.executeApiCall.bind(this), {
           username: process.env.BERLIN_RECYCLING_USERNAME,
           password: process.env.BERLIN_RECYCLING_PASSWORD,
         });
       } catch (err) {
-        console.warn("[MMM-BSR-Trash-Calendar] Berlin Recycling portal fetch failed:", err.message);
+        this.warn(`Berlin Recycling portal fetch failed: ${err.message}`);
       }
     }
 
     if (brConfig.usePublicFallback) {
       try {
+        this.debug("Trying Berlin Recycling public fallback");
         return await fetchBerlinRecyclingPublicDates(this.executeApiCall.bind(this), this.config);
       } catch (err) {
-        console.warn("[MMM-BSR-Trash-Calendar] Berlin Recycling public fetch failed:", err.message);
+        this.warn(`Berlin Recycling public fetch failed: ${err.message}`);
       }
     }
 
+    this.debug("No Berlin Recycling dates available");
     return [];
   },
 
   /**
-   * Executes a single HTTP GET with a 30-second timeout.
+   * Executes a single HTTP request with a 30-second timeout.
    * @param {string} url
-   * @returns {Promise<object>} Parsed JSON response
+   * @returns {Promise<object|string>} Parsed response body
    */
   async executeApiCall(url, options = {}) {
     const controller = new AbortController();
@@ -251,13 +302,25 @@ module.exports = NodeHelper.create({
 
     try {
       const fetch = require("node-fetch");
-      const res = await fetch(url, { ...options, signal: controller.signal });
+      const { includeHeaders = false, responseType = "json", ...fetchOptions } = options;
+      const res = await fetch(url, { ...fetchOptions, signal: controller.signal });
 
-      if (!res.ok) {
+      if (res.status >= 400) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
-      return await res.json();
+      const body = responseType === "text" ? await res.text() : await res.json();
+      if (!includeHeaders) {
+        return body;
+      }
+      return {
+        body,
+        cookies:
+          typeof res.headers.raw === "function" ? (res.headers.raw()["set-cookie"] ?? []) : [],
+        headers: Object.fromEntries(res.headers.entries()),
+        status: res.status,
+        url: res.url,
+      };
     } catch (err) {
       if (err.name === "AbortError") {
         const timeoutErr = new Error("API request timed out after 30s");
@@ -317,6 +380,7 @@ module.exports = NodeHelper.create({
     });
 
     this.currentData = datesWithIcons;
+    this.debug(`Saving cache with ${datesWithIcons.length} dates`);
 
     // Persist to cache
     this.saveCache({
@@ -329,6 +393,7 @@ module.exports = NodeHelper.create({
 
     // Notify frontend
     this.sendSocketNotification("BSR_PICKUP_DATA", { dates: datesWithIcons });
+    this.debug("Sent pickup data to frontend");
 
     // Restart regular update interval
     this.scheduleUpdate(this.config.updateInterval);
@@ -349,6 +414,11 @@ module.exports = NodeHelper.create({
 
     const delay = utils.calculateRetryDelay(this.retryCount);
     this.retryCount++;
+    this.warn(
+      `API error: ${error.message || "API nicht erreichbar"}; retry #${this.retryCount} in ${Math.round(
+        delay / 60000
+      )} minutes`
+    );
 
     // If we have cached data, keep showing it; otherwise send an error
     if (this.currentData) {
@@ -373,6 +443,7 @@ module.exports = NodeHelper.create({
    */
   scheduleUpdate(interval) {
     if (this.isRetrying) {
+      this.debug("Skipping regular update scheduling because retry cycle is active");
       return;
     }
 
@@ -392,6 +463,7 @@ module.exports = NodeHelper.create({
         this.requestLock = false;
       }
     }, interval);
+    this.debug(`Scheduled next regular update in ${Math.round(interval / 60000)} minutes`);
   },
 
   /**
@@ -415,5 +487,6 @@ module.exports = NodeHelper.create({
         this.requestLock = false;
       }
     }, delay);
+    this.debug(`Scheduled retry in ${Math.round(delay / 60000)} minutes`);
   },
 });

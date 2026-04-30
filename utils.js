@@ -193,6 +193,7 @@ function validateConfig(config) {
       maxEntries: config.maxEntries ?? 5,
       updateInterval: config.updateInterval ?? 86400000,
       categories: sanitizeCategories(config.categories ?? []),
+      debug: config.debug ?? false,
       berlinRecycling,
     },
   };
