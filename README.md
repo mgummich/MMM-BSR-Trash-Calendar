@@ -1,76 +1,75 @@
 # MMM-BSR-Trash-Calendar
 
-A [MagicMirror²](https://magicmirror.builders/) module that displays upcoming trash pickup dates from the Berlin waste management services **BSR** (Berliner Stadtreinigung) for any configured Berlin address.
+MagicMirror² module for Berlin trash pickup dates. It shows upcoming collections from
+**BSR** and, optionally, **Berlin Recycling**, with category colors, icons, warnings,
+today/tomorrow highlights, caching, and automatic refresh.
 
 ![Module screenshot placeholder](docs/screenshot.png)
-_Screenshot: upcoming pickup dates with color-coded waste categories_
+_Upcoming pickup dates with color-coded waste categories._
 
----
+## Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration Recipes](#configuration-recipes)
+- [Configuration Reference](#configuration-reference)
+- [Berlin Recycling](#berlin-recycling)
+- [API and Cache Behavior](#api-and-cache-behavior)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
 
 ## Features
 
-- Resolves any Berlin street address to a BSR address key automatically
-- Displays upcoming pickup dates sorted chronologically
-- Color-coded icons for each waste category (Biogut, Hausmüll, Laubtonne, Wertstoffe, Weihnachtsbaum)
-- Highlights today's and tomorrow's pickups
-- Shows BSR warning notices (e.g. holiday rescheduling) inline
-- Persistent file-based cache — survives MagicMirror restarts without extra API calls
-- Automatic refresh with configurable interval
-- Exponential backoff retry on API errors (5 → 10 → 20 → 40 → 80 → 120 min)
-
----
+- Resolves Berlin street address to BSR address key automatically.
+- Supports direct `addressKey` config to skip address lookup.
+- Displays upcoming pickup dates in chronological order.
+- Supports BSR categories and optional Berlin Recycling paper/glass/commercial dates.
+- Filters displayed dates with one shared `categories` list.
+- Highlights pickups due today or tomorrow.
+- Shows provider warnings, for example holiday rescheduling.
+- Caches data in `cache.json` to reduce API calls and survive restarts.
+- Retries API failures with exponential backoff: 5, 10, 20, 40, 80, 120 minutes.
 
 ## Installation
 
-### 1. Clone the module
-
-Navigate to your MagicMirror `modules` directory and clone the repository:
+### 1. Clone into MagicMirror modules
 
 ```bash
 cd ~/MagicMirror/modules
-git clone https://github.com/your-username/MMM-BSR-Trash-Calendar.git
+git clone https://github.com/mgummich/MMM-BSR-TrashCalendar.git MMM-BSR-Trash-Calendar
 ```
 
-### 2. Install dependencies
+### 2. Install production dependencies
 
 ```bash
 cd MMM-BSR-Trash-Calendar
 npm install --omit=dev
 ```
 
-### 3. Add the module to your config
+### 3. Add module to `config.js`
 
-Open `~/MagicMirror/config/config.js` and add the module entry to the `modules` array:
-
-```javascript
-{
-  module: "MMM-BSR-Trash-Calendar",
-  position: "top_right",
-  config: {
-    street: "Bergmannstr.",
-    houseNumber: "12"
-  }
-}
-```
+Open `~/MagicMirror/config/config.js` and add one of the configuration recipes below to
+the `modules` array.
 
 ### 4. Restart MagicMirror
 
 ```bash
 pm2 restart MagicMirror
-# or
+# or, for local installs
 npm run start
 ```
 
----
+## Configuration Recipes
 
-## Configuration
+### BSR only
 
-### Minimal configuration (required fields only)
+Use street and house number. The module resolves the BSR address key automatically.
 
 ```javascript
 {
   module: "MMM-BSR-Trash-Calendar",
   position: "top_right",
+  header: "Abfuhrtermine",
   config: {
     street: "Bergmannstr.",
     houseNumber: "12"
@@ -78,9 +77,9 @@ npm run start
 }
 ```
 
-### Configuration with direct address key (skip address lookup)
+### BSR with direct address key
 
-If you already know your BSR address key, you can provide it directly to skip the address lookup step:
+Use this if you already know the BSR address key and want to skip address lookup.
 
 ```javascript
 {
@@ -92,9 +91,33 @@ If you already know your BSR address key, you can provide it directly to skip th
 }
 ```
 
-> **Tip:** To find your address key, check the BSR website or look it up once via the address lookup API: `https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr.:::12`
+Address lookup URL example:
 
-### Full configuration (all options)
+```text
+https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr.:::12
+```
+
+### BSR plus Berlin Recycling
+
+```javascript
+{
+  module: "MMM-BSR-Trash-Calendar",
+  position: "top_right",
+  header: "Abfuhrtermine",
+  config: {
+    street: "Bergmannstr.",
+    houseNumber: "12",
+    categories: ["HM", "BI", "WS", "PP", "GL"],
+    berlinRecycling: {
+      enabled: true,
+      usePortal: true,
+      usePublicFallback: true
+    }
+  }
+}
+```
+
+### Full example
 
 ```javascript
 {
@@ -105,13 +128,17 @@ If you already know your BSR address key, you can provide it directly to skip th
     // Required: either addressKey OR street + houseNumber
     street: "Bergmannstr.",
     houseNumber: "12",
-    // addressKey: "10965_Bergmannstr._12",  // alternative: skip address lookup
+    // addressKey: "10965_Bergmannstr._12",
 
-    // Optional
+    // Display
     dateFormat: "dd.MM.yyyy",
     maxEntries: 5,
-    updateInterval: 86400000,
     categories: ["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"],
+
+    // Refresh
+    updateInterval: 86400000,
+
+    // Optional second provider
     berlinRecycling: {
       enabled: false,
       usePortal: true,
@@ -121,37 +148,45 @@ If you already know your BSR address key, you can provide it directly to skip th
 }
 ```
 
-### Parameter reference
+## Configuration Reference
 
-| Parameter         | Type       | Default                                                        | Required | Description                                                                                                                               |
-| ----------------- | ---------- | -------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `street`          | `string`   | —                                                              | ✅ Yes¹  | Street name as used by BSR (e.g. `"Bergmannstr."`, `"Oranienstr."`)                                                                       |
-| `houseNumber`     | `string`   | —                                                              | ✅ Yes¹  | House number (e.g. `"12"`, `"4a"`)                                                                                                        |
-| `addressKey`      | `string`   | —                                                              | ✅ Yes¹  | BSR address key (e.g. `"10965_Bergmannstr._12"`). If provided, skips address lookup. Either this or `street`+`houseNumber` is required.   |
-| `dateFormat`      | `string`   | `"dd.MM.yyyy"`                                                 | No       | Date format for pickup dates. Supported tokens: `dd`, `MM`, `yyyy`, `yy`                                                                  |
-| `maxEntries`      | `number`   | `5`                                                            | No       | Maximum number of upcoming pickup dates to display                                                                                        |
-| `updateInterval`  | `number`   | `86400000` (24 h)                                              | No       | How often to refresh data from the APIs, in milliseconds                                                                                  |
-| `categories`      | `string[]` | `["BI", "HM", "LT", "WS", "WB", "PP", ...]`                    | No       | Waste categories to display. Pass a subset to filter. Unknown codes are ignored with a warning. Empty array falls back to all categories. |
-| `berlinRecycling` | `object`   | `{ enabled: false, usePortal: true, usePublicFallback: true }` | No       | Optional Berlin Recycling provider. Portal credentials are read from environment variables.                                               |
+| Parameter         | Type       | Default                                                        | Required | Description                                                                                              |
+| ----------------- | ---------- | -------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `street`          | `string`   | -                                                              | Yes¹     | Berlin street name as used by BSR, for example `"Bergmannstr."`.                                         |
+| `houseNumber`     | `string`   | -                                                              | Yes¹     | House number, for example `"12"` or `"4a"`.                                                              |
+| `addressKey`      | `string`   | -                                                              | Yes¹     | BSR address key. If set, skips address lookup.                                                           |
+| `dateFormat`      | `string`   | `"dd.MM.yyyy"`                                                 | No       | Date format. Supported tokens: `dd`, `MM`, `yyyy`, `yy`.                                                 |
+| `maxEntries`      | `number`   | `5`                                                            | No       | Maximum number of upcoming dates shown.                                                                  |
+| `updateInterval`  | `number`   | `86400000`                                                     | No       | Refresh interval in milliseconds. Default is 24 hours.                                                   |
+| `categories`      | `string[]` | `["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"]`             | No       | Categories shown from all providers. Empty or invalid lists fall back to all categories.                 |
+| `berlinRecycling` | `object`   | `{ enabled: false, usePortal: true, usePublicFallback: true }` | No       | Optional Berlin Recycling provider. Portal credentials come from environment variables, not `config.js`. |
 
-> ¹ Either `addressKey` **or** both `street` + `houseNumber` must be provided.
+¹ Provide either `addressKey` or both `street` and `houseNumber`.
 
-### Waste categories
+## Categories
 
-| Code | Name           | Color      | Icon             |
-| ---- | -------------- | ---------- | ---------------- |
-| `BI` | Biogut         | Brown      | 🌱 `fa-seedling` |
-| `HM` | Hausmüll       | Grey       | 🗑 `fa-trash`    |
-| `LT` | Laubtonne      | Green      | 🍃 `fa-leaf`     |
-| `WS` | Wertstoffe     | Yellow     | ♻️ `fa-recycle`  |
-| `WB` | Weihnachtsbaum | Dark green | 🎄 `fa-tree`     |
-| `PP` | Papier         | Blue       | `fa-newspaper`   |
-| `GL` | Glas           | Green      | `fa-wine-bottle` |
-| `GW` | Gewerbeabfall  | Brown      | `fa-dumpster`    |
+| Code | Name           | Provider         | Icon             |
+| ---- | -------------- | ---------------- | ---------------- |
+| `BI` | Biogut         | BSR              | `fa-seedling`    |
+| `HM` | Hausmüll       | BSR              | `fa-trash`       |
+| `LT` | Laubtonne      | BSR              | `fa-leaf`        |
+| `WS` | Wertstoffe     | BSR              | `fa-recycle`     |
+| `WB` | Weihnachtsbaum | BSR              | `fa-tree`        |
+| `PP` | Papier         | Berlin Recycling | `fa-newspaper`   |
+| `GL` | Glas           | Berlin Recycling | `fa-wine-bottle` |
+| `GW` | Gewerbeabfall  | Berlin Recycling | `fa-dumpster`    |
 
-### Berlin Recycling
+Category filter examples:
 
-Enable the additional Berlin Recycling provider in `config.js`:
+```javascript
+categories: ["HM", "BI", "WS"]; // BSR only
+categories: ["HM", "BI", "PP", "GL"]; // BSR + Berlin Recycling
+categories: ["PP"]; // Berlin Recycling paper only
+```
+
+## Berlin Recycling
+
+Enable Berlin Recycling in module config:
 
 ```javascript
 berlinRecycling: {
@@ -161,140 +196,101 @@ berlinRecycling: {
 }
 ```
 
-Portal credentials are optional and read from environment variables:
+Portal credentials are read from environment variables:
 
 ```bash
-BERLIN_RECYCLING_USERNAME=your-login
-BERLIN_RECYCLING_PASSWORD=your-password
+export BERLIN_RECYCLING_USERNAME="your-login"
+export BERLIN_RECYCLING_PASSWORD="your-password"
 ```
 
-If portal login is unavailable and `usePublicFallback` is enabled, the module tries the
-public tenant street-search calendar. Credentials are never written to `cache.json`.
+For PM2 setups, define these variables in the shell or ecosystem file that starts
+MagicMirror. Credentials are never written to `cache.json`.
 
----
+Provider behavior:
 
-## API Dependencies
+- `usePortal: true`: try authenticated Berlin Recycling portal first.
+- `usePublicFallback: true`: use public tenant street-search dates if portal credentials
+  are missing or portal login fails.
+- Berlin Recycling failures do not hide successful BSR dates.
 
-This module communicates with the BSR public API at `umapi.bsr.de`. No API key is required.
-When enabled, it can also query Berlin Recycling through the customer portal or public
-tenant street-search calendar.
+## API and Cache Behavior
 
-### Endpoints
+### BSR API
 
-#### Address lookup
+No API key needed.
 
-Resolves a street address to a BSR address key (`AddrKey`).
-
-```
+```text
 GET https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet
     ?searchQuery={street}:::{houseNumber}
 ```
 
-**Response format:**
-
-```json
-[
-  {
-    "value": "10965_Bergmannstr._12",
-    "label": "Bergmannstr. 12, 10965 Berlin"
-  }
-]
-```
-
-The module uses `value` from the first result as the address key for subsequent calendar queries.
-
-#### Pickup calendar
-
-Fetches pickup events for a given address and month.
-
-```
+```text
 GET https://umapi.bsr.de/p/de.bsr.adressen.app/abfuhrEvents
     ?filter=AddrKey eq '{addressKey}'
       and DateFrom eq datetime'{year}-{month}-01T00:00:00'
-      and DateTo eq datetime'{year}-{month}-01T00:00:00'
+      and DateTo eq datetime'{year}-{month}-{lastDay}T00:00:00'
 ```
 
-**Response format:**
+The module fetches the current and following month, then merges dates from enabled
+providers.
 
-```json
-{
-  "dates": {
-    "2025-04-07": [
-      {
-        "category": "HM",
-        "serviceDay": "Montag",
-        "serviceDate_actual": "07.04.2025",
-        "serviceDate_regular": "07.04.2025",
-        "rhythm": "14-täglich",
-        "warningText": "",
-        "disposalComp": "BSR"
-      }
-    ]
-  }
-}
-```
+### Cache
 
-The module fetches data for the **current month and the following month** on each refresh cycle to ensure no upcoming dates are missed around month boundaries.
-
-### Rate limiting & caching
-
-The BSR API does not publish explicit rate limits. The module minimises requests by:
-
-- Caching the resolved address key and pickup dates in `cache.json` (in the module directory)
-- Skipping API calls on restart if the cache is still valid (interval not expired, future dates present)
-- Invalidating the cache only when the configured address changes or the update interval expires
-- Using exponential backoff on errors: 5 → 10 → 20 → 40 → 80 → 120 minutes (maximum)
-
----
-
-## Caching
-
-The module stores a `cache.json` file in its own directory with the following structure:
+Runtime cache lives in `cache.json` inside the module directory:
 
 ```json
 {
   "street": "Bergmannstr.",
   "houseNumber": "12",
   "addressKey": "10965_Bergmannstr._12",
-  "pickupDates": [ ... ],
+  "pickupDates": [],
   "lastFetchTimestamp": 1712345678901
 }
 ```
 
-The cache is automatically invalidated when:
+Cache refreshes when:
 
-- The configured address (street or house number) changes
-- The `updateInterval` has elapsed since the last successful fetch
-- The cache file is missing, corrupted, or unreadable
+- configured address changes,
+- `updateInterval` has elapsed,
+- cache is missing, unreadable, or corrupted,
+- no future pickup dates remain.
 
----
+Force fresh data:
+
+```bash
+pm2 stop MagicMirror
+rm ~/MagicMirror/modules/MMM-BSR-Trash-Calendar/cache.json
+pm2 start MagicMirror
+```
 
 ## Troubleshooting
 
-**"Adresse nicht gefunden"** — The BSR API could not match the configured address. Double-check `street` and `houseNumber` against the [BSR website](https://www.bsr.de/abfuhrkalender).
-
-**Module shows stale data** — Delete `cache.json` from the module directory and restart MagicMirror to force a fresh fetch.
-
-**No data after restart** — Check the MagicMirror logs for `[MMM-BSR-Trash-Calendar]` entries. The BSR API may be temporarily unavailable; the module will retry automatically.
-
----
+| Problem                    | Fix                                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `Adresse nicht gefunden`   | Check spelling against the BSR website, or use `addressKey` directly.                                        |
+| Stale data                 | Delete `cache.json` and restart MagicMirror.                                                                 |
+| No Berlin Recycling dates  | Check env vars, keep `usePublicFallback: true`, and include BR categories like `PP` or `GL` in `categories`. |
+| No data after restart      | Check MagicMirror logs for `[MMM-BSR-Trash-Calendar]`. API retry runs automatically.                         |
+| Too many or few entries    | Adjust `maxEntries`.                                                                                         |
+| Wrong categories displayed | Adjust `categories`; it filters all providers.                                                               |
 
 ## Development
 
 ```bash
 npm install
-npm run lint          # ESLint
-npm run format:check  # Prettier
-npm test              # All tests (unit + property + integration)
+npm run lint
+npm run format:check
+npm test
 npm run test:unit
 npm run test:property
 npm run test:integration
-
-# Live API tests (requires internet access, skipped by default)
-BSR_LIVE_TESTS=true npx vitest run tests/integration/bsr-api.test.js
 ```
 
----
+Live BSR API tests are skipped by default:
+
+```bash
+BSR_LIVE_TESTS=true npx vitest run tests/integration/bsr-api.test.js
+```
 
 ## License
 
