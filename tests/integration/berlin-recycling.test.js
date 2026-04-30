@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const NODE_HELPER_FILE = path.resolve(TEST_DIR, "../../node_helper.js");
 const requireFromNodeHelper = createRequire(NODE_HELPER_FILE);
+const { getCacheKey } = requireFromNodeHelper("./utils.js");
 
 const VALID_CONFIG = {
   street: "Bergmannstr.",
@@ -19,7 +20,6 @@ const VALID_CONFIG = {
   berlinRecycling: {
     enabled: true,
     usePortal: true,
-    usePublicFallback: false,
   },
 };
 
@@ -62,14 +62,14 @@ function loadHelper() {
   return module.exports;
 }
 
-function setupHelper({ executeApiCall }) {
+function setupHelper({ executeApiCall, loadCache = () => null }) {
   const helper = loadHelper();
   const notifications = [];
   helper.sendSocketNotification = (notification, payload) => {
     notifications.push({ notification, payload });
   };
   helper.executeApiCall = executeApiCall;
-  helper.loadCache = () => null;
+  helper.loadCache = loadCache;
   helper.saveCache = vi.fn();
   helper.scheduleUpdate = vi.fn();
   helper.scheduleRetry = vi.fn();
@@ -103,28 +103,6 @@ describe("Berlin Recycling node_helper orchestration", () => {
     const { helper, notifications } = setupHelper({ executeApiCall });
 
     await helper.socketNotificationReceived("BSR_INIT_MODULE", VALID_CONFIG);
-
-    const data = notifications.find((n) => n.notification === "BSR_PICKUP_DATA")?.payload.dates;
-    expect(executeApiCall).toHaveBeenCalledTimes(3);
-    expect(notifications.some((n) => n.notification === "BSR_ERROR")).toBe(false);
-    expect(data).toHaveLength(1);
-    expect(data[0]).toMatchObject({ category: "HM", disposalCompany: "BSR" });
-  });
-
-  it("keeps BSR output when explicit Berlin Recycling public fallback is unsupported", async () => {
-    process.env.BERLIN_RECYCLING_USERNAME = "";
-    process.env.BERLIN_RECYCLING_PASSWORD = "";
-    const executeApiCall = vi
-      .fn()
-      .mockResolvedValueOnce(bsrAddressResponse())
-      .mockResolvedValueOnce(bsrCalendarResponse("2099-06-15"))
-      .mockResolvedValueOnce({ dates: {} });
-    const { helper, notifications } = setupHelper({ executeApiCall });
-
-    await helper.socketNotificationReceived("BSR_INIT_MODULE", {
-      ...VALID_CONFIG,
-      berlinRecycling: { enabled: true, usePortal: true, usePublicFallback: true },
-    });
 
     const data = notifications.find((n) => n.notification === "BSR_PICKUP_DATA")?.payload.dates;
     expect(executeApiCall).toHaveBeenCalledTimes(3);
@@ -171,5 +149,51 @@ describe("Berlin Recycling node_helper orchestration", () => {
     expect(debugMessages).toContain("DEBUG Config accepted");
     expect(debugMessages).toContain("DEBUG Fetching BSR pickup dates");
     expect(debugMessages).toContain("DEBUG Merged and filtered");
+  });
+
+  it("re-filters raw cached provider dates for the current category config", async () => {
+    const cache = {
+      cacheKey: "placeholder",
+      street: VALID_CONFIG.street,
+      houseNumber: VALID_CONFIG.houseNumber,
+      addressKey: "10965_Bergmannstr._12",
+      providerDates: [
+        {
+          date: "2099-06-10",
+          category: "PP",
+          categoryName: "Papier",
+          color: "#1E88E5",
+          icon: "fa-newspaper",
+          disposalCompany: "Berlin Recycling",
+          provider: "BERLIN_RECYCLING",
+        },
+        {
+          date: "2099-06-15",
+          category: "HM",
+          categoryName: "Hausmüll",
+          color: "#808080",
+          icon: "fa-trash",
+          disposalCompany: "BSR",
+          provider: "BSR",
+        },
+      ],
+      lastFetchTimestamp: Date.now(),
+    };
+    cache.cacheKey = getCacheKey({ ...VALID_CONFIG, categories: ["PP"] });
+    const executeApiCall = vi.fn();
+    const { helper, notifications } = setupHelper({
+      executeApiCall,
+      loadCache: () => cache,
+    });
+
+    await helper.socketNotificationReceived("BSR_INIT_MODULE", {
+      ...VALID_CONFIG,
+      categories: ["PP"],
+    });
+
+    const data = notifications.find((n) => n.notification === "BSR_PICKUP_DATA")?.payload.dates;
+    expect(executeApiCall).not.toHaveBeenCalled();
+    expect(data).toHaveLength(1);
+    expect(data[0]).toMatchObject({ category: "PP", disposalCompany: "Berlin Recycling" });
   });
 });

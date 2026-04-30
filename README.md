@@ -113,8 +113,7 @@ https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr
     categories: ["HM", "BI", "WS", "PP", "GL"],
     berlinRecycling: {
       enabled: true,
-      usePortal: true,
-      usePublicFallback: false
+      usePortal: true
     }
   }
 }
@@ -145,8 +144,7 @@ https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr
     // Optional second provider
     berlinRecycling: {
       enabled: false,
-      usePortal: true,
-      usePublicFallback: false
+      usePortal: true
     }
   }
 }
@@ -154,17 +152,17 @@ https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr
 
 ## Configuration Reference
 
-| Parameter         | Type       | Default                                                         | Required | Description                                                                                              |
-| ----------------- | ---------- | --------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| `street`          | `string`   | -                                                               | Yes¹     | Berlin street name as used by BSR, for example `"Bergmannstr."`.                                         |
-| `houseNumber`     | `string`   | -                                                               | Yes¹     | House number, for example `"12"` or `"4a"`.                                                              |
-| `addressKey`      | `string`   | -                                                               | Yes¹     | BSR address key. If set, skips address lookup.                                                           |
-| `dateFormat`      | `string`   | `"dd.MM.yyyy"`                                                  | No       | Date format. Supported tokens: `dd`, `MM`, `yyyy`, `yy`.                                                 |
-| `maxEntries`      | `number`   | `5`                                                             | No       | Maximum number of upcoming dates shown.                                                                  |
-| `updateInterval`  | `number`   | `86400000`                                                      | No       | Refresh interval in milliseconds. Default is 24 hours.                                                   |
-| `categories`      | `string[]` | `["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"]`              | No       | Categories shown from all providers. Empty or invalid lists fall back to all categories.                 |
-| `debug`           | `boolean`  | `false`                                                         | No       | Enables detailed Node helper logs for cache, API, provider, merge, retry, and scheduling decisions.      |
-| `berlinRecycling` | `object`   | `{ enabled: false, usePortal: true, usePublicFallback: false }` | No       | Optional Berlin Recycling provider. Portal credentials come from environment variables, not `config.js`. |
+| Parameter         | Type       | Default                                            | Required | Description                                                                                              |
+| ----------------- | ---------- | -------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `street`          | `string`   | -                                                  | Yes¹     | Berlin street name as used by BSR, for example `"Bergmannstr."`.                                         |
+| `houseNumber`     | `string`   | -                                                  | Yes¹     | House number, for example `"12"` or `"4a"`.                                                              |
+| `addressKey`      | `string`   | -                                                  | Yes¹     | BSR address key. If set, skips address lookup.                                                           |
+| `dateFormat`      | `string`   | `"dd.MM.yyyy"`                                     | No       | Date format. Supported tokens: `dd`, `MM`, `yyyy`, `yy`.                                                 |
+| `maxEntries`      | `number`   | `5`                                                | No       | Maximum number of upcoming dates shown.                                                                  |
+| `updateInterval`  | `number`   | `86400000`                                         | No       | Refresh interval in milliseconds. Default is 24 hours.                                                   |
+| `categories`      | `string[]` | `["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"]` | No       | Categories shown from all providers. Empty or invalid lists fall back to all categories.                 |
+| `debug`           | `boolean`  | `false`                                            | No       | Enables detailed Node helper logs for cache, API, provider, merge, retry, and scheduling decisions.      |
+| `berlinRecycling` | `object`   | `{ enabled: false, usePortal: true }`              | No       | Optional Berlin Recycling provider. Portal credentials come from environment variables, not `config.js`. |
 
 ¹ Provide either `addressKey` or both `street` and `houseNumber`.
 
@@ -196,8 +194,7 @@ Enable Berlin Recycling in module config:
 ```javascript
 berlinRecycling: {
   enabled: true,
-  usePortal: true,
-  usePublicFallback: false
+  usePortal: true
 }
 ```
 
@@ -220,9 +217,6 @@ and `.env` is ignored by git.
 Provider behavior:
 
 - `usePortal: true`: try authenticated Berlin Recycling portal first.
-- `usePublicFallback: false`: default. No working public Berlin Recycling endpoint is known.
-- `usePublicFallback: true`: accepted for config compatibility, but currently logs an
-  unsupported-provider warning and returns no Berlin Recycling dates.
 - `addressKey` is not used by Berlin Recycling.
 - Berlin Recycling failures do not hide successful BSR dates.
 

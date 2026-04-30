@@ -14,9 +14,6 @@ require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 const utils = require("./utils.js");
 const { resolveBsrAddress, fetchBsrPickupDates } = require("./providers/bsr.js");
 const { fetchBerlinRecyclingPortalDates } = require("./providers/berlinRecyclingPortal.js");
-const {
-  rejectUnsupportedBerlinRecyclingPublicFallback,
-} = require("./providers/berlinRecyclingPublic.js");
 const { mergeProviderDates } = require("./providers/merge.js");
 
 const CACHE_PATH = path.join(__dirname, "cache.json");
@@ -143,18 +140,18 @@ module.exports = NodeHelper.create({
    * Called on init and on each retry/update tick.
    */
   async _fetchAndUpdate() {
-    const { isCacheValid, isCacheAddressMatch } = utils;
+    const { getCachedProviderDates, isCacheValid, isCacheAddressMatch } = utils;
     this.debug("Fetch cycle started");
 
     // 3. Load cache
     const cache = this.loadCache();
 
     if (cache && isCacheAddressMatch(cache, this.config)) {
-      this.debug(`Cache hit for current address with ${cache.pickupDates.length} dates`);
+      const providerDates = getCachedProviderDates(cache);
+      this.debug(`Cache hit for current source config with ${providerDates.length} dates`);
       // Cache exists and address matches → send cached data immediately
       this.addressKey = cache.addressKey;
-      this.currentData = cache.pickupDates;
-      this.sendSocketNotification("BSR_PICKUP_DATA", { dates: cache.pickupDates });
+      this.sendPickupData(providerDates);
 
       // If cache is still valid → schedule next update and stop
       if (isCacheValid(cache, this.config, Date.now(), this.config.updateInterval)) {
@@ -204,23 +201,16 @@ module.exports = NodeHelper.create({
     }
 
     // 5. Fetch pickup dates for current + next month
-    let dates;
+    let providerDates;
     try {
-      this.debug("Fetching BSR pickup dates");
-      dates = await this.fetchPickupDates(this.addressKey);
-      this.debug(`BSR returned ${dates.length} dates`);
+      providerDates = await this.fetchEnabledProviderDates();
     } catch (err) {
       this.handleApiError(err);
       return;
     }
 
-    const berlinRecyclingDates = await this.fetchBerlinRecyclingDates();
-    this.debug(`Berlin Recycling returned ${berlinRecyclingDates.length} dates`);
-    dates = mergeProviderDates([dates, berlinRecyclingDates], this.config.categories);
-    this.debug(`Merged and filtered to ${dates.length} dates`);
-
     // 6. Success
-    this.handleApiSuccess(dates);
+    this.handleApiSuccess(providerDates);
   },
 
   // ---------------------------------------------------------------------------
@@ -246,8 +236,38 @@ module.exports = NodeHelper.create({
     return fetchBsrPickupDates(this.executeApiCall.bind(this), utils, addressKey);
   },
 
+  getEnabledProviders() {
+    const providers = [
+      {
+        name: "BSR",
+        fetch: () => this.fetchPickupDates(this.addressKey),
+      },
+    ];
+
+    if (this.config.berlinRecycling?.enabled && this.config.berlinRecycling?.usePortal) {
+      providers.push({
+        name: "Berlin Recycling",
+        fetch: () => this.fetchBerlinRecyclingDates(),
+      });
+    }
+
+    return providers;
+  },
+
+  async fetchEnabledProviderDates() {
+    const groups = [];
+    for (const provider of this.getEnabledProviders()) {
+      this.debug(`Fetching ${provider.name} pickup dates`);
+      const dates = await provider.fetch();
+      this.debug(`${provider.name} returned ${dates.length} dates`);
+      groups.push(dates);
+    }
+
+    return utils.sortByDate(groups.flat());
+  },
+
   /**
-   * Fetches Berlin Recycling dates via portal or public fallback.
+   * Fetches Berlin Recycling dates via portal.
    * @returns {Promise<Array>}
    */
   async fetchBerlinRecyclingDates() {
@@ -257,10 +277,7 @@ module.exports = NodeHelper.create({
     }
 
     const brConfig = this.config.berlinRecycling;
-    this.debug(
-      `Berlin Recycling enabled: portal=${brConfig.usePortal ? "on" : "off"}, ` +
-        `fallback=${brConfig.usePublicFallback ? "on" : "off"}`
-    );
+    this.debug(`Berlin Recycling enabled: portal=${brConfig.usePortal ? "on" : "off"}`);
 
     if (brConfig.usePortal) {
       try {
@@ -280,20 +297,26 @@ module.exports = NodeHelper.create({
       }
     }
 
-    if (brConfig.usePublicFallback) {
-      try {
-        this.debug("Trying Berlin Recycling public fallback");
-        return await rejectUnsupportedBerlinRecyclingPublicFallback(
-          this.executeApiCall.bind(this),
-          this.config
-        );
-      } catch (err) {
-        this.warn(`Berlin Recycling public fetch failed: ${err.message}`);
-      }
-    }
-
     this.debug("No Berlin Recycling dates available");
     return [];
+  },
+
+  prepareDisplayDates(providerDates) {
+    const dates = mergeProviderDates([providerDates], this.config.categories);
+    this.debug(`Merged and filtered to ${dates.length} dates`);
+
+    return dates.map((d) => {
+      const categoryInfo = utils.CATEGORY_MAP[d.category];
+      const svgContent = categoryInfo ? utils.loadSvgIcon(ICONS_DIR, categoryInfo.svgFile) : null;
+      return { ...d, svgIcon: svgContent };
+    });
+  },
+
+  sendPickupData(providerDates) {
+    const datesWithIcons = this.prepareDisplayDates(providerDates);
+    this.currentData = datesWithIcons;
+    this.sendSocketNotification("BSR_PICKUP_DATA", { dates: datesWithIcons });
+    this.debug("Sent pickup data to frontend");
   },
 
   /**
@@ -370,9 +393,9 @@ module.exports = NodeHelper.create({
   /**
    * Called on successful data fetch.
    * Resets retry state, saves cache, sends data to frontend, schedules next update.
-   * @param {Array} dates
+   * @param {Array} providerDates
    */
-  handleApiSuccess(dates) {
+  handleApiSuccess(providerDates) {
     this.retryCount = 0;
     this.isRetrying = false;
 
@@ -382,21 +405,17 @@ module.exports = NodeHelper.create({
       this.retryTimer = null;
     }
 
-    // Embed SVG icon content into each pickup date
-    const datesWithIcons = dates.map((d) => {
-      const categoryInfo = utils.CATEGORY_MAP[d.category];
-      const svgContent = categoryInfo ? utils.loadSvgIcon(ICONS_DIR, categoryInfo.svgFile) : null;
-      return { ...d, svgIcon: svgContent };
-    });
-
+    const datesWithIcons = this.prepareDisplayDates(providerDates);
     this.currentData = datesWithIcons;
-    this.debug(`Saving cache with ${datesWithIcons.length} dates`);
+    this.debug(`Saving cache with ${providerDates.length} raw provider dates`);
 
     // Persist to cache
     this.saveCache({
+      cacheKey: utils.getCacheKey(this.config),
       street: this.config.street,
       houseNumber: this.config.houseNumber,
       addressKey: this.addressKey,
+      providerDates,
       pickupDates: datesWithIcons,
       lastFetchTimestamp: Date.now(),
     });

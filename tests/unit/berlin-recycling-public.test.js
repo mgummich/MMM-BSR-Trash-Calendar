@@ -1,9 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import {
-  fetchBerlinRecyclingPublicDates,
-  parseBerlinRecyclingPublicDates,
-  rejectUnsupportedBerlinRecyclingPublicFallback,
-} from "../../providers/berlinRecyclingPublic.js";
+import { describe, it, expect } from "vitest";
+import { parseBerlinRecyclingPublicDates } from "../../providers/berlinRecyclingPublic.js";
 
 describe("Berlin Recycling public provider", () => {
   it("parses public tenant appointments into PickupDate objects", () => {
@@ -30,18 +26,6 @@ describe("Berlin Recycling public provider", () => {
     ]);
   });
 
-  it("calls public endpoint with street and houseNumber", async () => {
-    const execute = vi.fn().mockResolvedValue({ dates: [] });
-    await expect(
-      rejectUnsupportedBerlinRecyclingPublicFallback(execute, {
-        street: "Bergmannstr.",
-        houseNumber: "12",
-      })
-    ).rejects.toThrow("Berlin Recycling public fallback is not supported");
-
-    expect(execute).not.toHaveBeenCalled();
-  });
-
   it("still parses legacy public appointment payloads", () => {
     const response = {
       dates: [{ date: "2099-04-01", fraction: "Pappe / Papier / Kartonagen" }],
@@ -52,15 +36,10 @@ describe("Berlin Recycling public provider", () => {
     ]);
   });
 
-  it("preserves old call signature shape for explicit config", async () => {
-    const execute = vi.fn().mockResolvedValue({ dates: [] });
-    await expect(
-      fetchBerlinRecyclingPublicDates(execute, {
-        street: "Bergmannstr.",
-        houseNumber: "12",
-      })
-    ).rejects.toMatchObject({ type: "BR_PUBLIC_UNSUPPORTED" });
+  it("does not expose a public fallback fetch provider", async () => {
+    const providerModule = await import("../../providers/berlinRecyclingPublic.js");
 
-    expect(execute).not.toHaveBeenCalled();
+    expect(providerModule.fetchBerlinRecyclingPublicDates).toBeUndefined();
+    expect(providerModule.rejectUnsupportedBerlinRecyclingPublicFallback).toBeUndefined();
   });
 });

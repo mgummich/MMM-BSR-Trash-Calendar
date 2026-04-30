@@ -180,7 +180,6 @@ function validateConfig(config) {
   const berlinRecycling = {
     enabled: config.berlinRecycling?.enabled ?? false,
     usePortal: config.berlinRecycling?.usePortal ?? true,
-    usePublicFallback: config.berlinRecycling?.usePublicFallback ?? false,
   };
 
   return {
@@ -197,6 +196,22 @@ function validateConfig(config) {
       berlinRecycling,
     },
   };
+}
+
+function getCacheKey(config) {
+  const address = config.addressKey
+    ? { addressKey: config.addressKey }
+    : { street: config.street || "", houseNumber: config.houseNumber || "" };
+  const providers = {
+    bsr: true,
+    berlinRecycling: Boolean(config.berlinRecycling?.enabled && config.berlinRecycling?.usePortal),
+  };
+
+  return JSON.stringify({
+    version: 2,
+    address,
+    providers,
+  });
 }
 
 /**
@@ -232,12 +247,19 @@ function serializePickupDate(pickupDate) {
  * @param {number} interval - Update interval in ms
  * @returns {boolean}
  */
+function getCachedProviderDates(cache) {
+  if (Array.isArray(cache.providerDates)) {
+    return cache.providerDates;
+  }
+  return Array.isArray(cache.pickupDates) ? cache.pickupDates : [];
+}
+
 function isCacheValid(cache, _config, now, interval) {
   if (now - cache.lastFetchTimestamp >= interval) {
     return false;
   }
   const today = new Date(now).toISOString().slice(0, 10);
-  const hasFuture = cache.pickupDates.some((d) => d.date >= today);
+  const hasFuture = getCachedProviderDates(cache).some((d) => d.date >= today);
   return hasFuture;
 }
 
@@ -248,6 +270,12 @@ function isCacheValid(cache, _config, now, interval) {
  * @returns {boolean}
  */
 function isCacheAddressMatch(cache, config) {
+  if (cache.cacheKey) {
+    return cache.cacheKey === getCacheKey(config);
+  }
+  if (config.addressKey) {
+    return cache.addressKey === config.addressKey;
+  }
   return cache.street === config.street && cache.houseNumber === config.houseNumber;
 }
 
@@ -333,6 +361,8 @@ function loadSvgIcon(iconsDir, svgFile) {
 
 module.exports = {
   CATEGORY_MAP,
+  getCacheKey,
+  getCachedProviderDates,
   parsePickupDates,
   filterByCategories,
   sortByDate,

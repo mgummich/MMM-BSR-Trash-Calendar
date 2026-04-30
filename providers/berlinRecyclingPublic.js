@@ -55,20 +55,7 @@ function parseBerlinRecyclingPublicDates(response, today = new Date().toISOStrin
   return sortByDate(filterPastDates(dates, today));
 }
 
-async function rejectUnsupportedBerlinRecyclingPublicFallback(executeApiCall, config) {
-  void executeApiCall;
-  void config;
-
-  const error = new Error(
-    "Berlin Recycling public fallback is not supported; configure portal credentials instead"
-  );
-  error.type = "BR_PUBLIC_UNSUPPORTED";
-  throw error;
-}
-
 module.exports = {
-  rejectUnsupportedBerlinRecyclingPublicFallback,
   mapBerlinRecyclingCategory,
   parseBerlinRecyclingPublicDates,
-  fetchBerlinRecyclingPublicDates: rejectUnsupportedBerlinRecyclingPublicFallback,
 };

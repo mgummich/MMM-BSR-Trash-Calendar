@@ -7,6 +7,7 @@ import {
   filterByCategories,
   getRelativeLabel,
   CATEGORY_MAP,
+  getCacheKey,
   isCacheValid,
   isCacheAddressMatch,
   loadCache,
@@ -663,6 +664,40 @@ describe("BDD-Szenario 6: Cache beim Neustart — gecachte Termine sofort angeze
     const cache = { street: "Bergmannstr.", houseNumber: "12" };
     const config = { street: "Bergmannstr.", houseNumber: "12" };
     expect(isCacheAddressMatch(cache, config)).toBe(true);
+  });
+
+  it("isCacheAddressMatch berücksichtigt cacheKey für addressKey-only Konfigurationen", () => {
+    const cache = {
+      cacheKey: "wrong-key",
+      street: "",
+      houseNumber: "",
+      addressKey: "old-address-key",
+    };
+    const config = { addressKey: "new-address-key", street: "", houseNumber: "" };
+    expect(isCacheAddressMatch(cache, config)).toBe(false);
+  });
+
+  it("isCacheAddressMatch berücksichtigt legacy addressKey caches ohne cacheKey", () => {
+    const cache = {
+      street: "",
+      houseNumber: "",
+      addressKey: "old-address-key",
+    };
+    const config = { addressKey: "new-address-key", street: "", houseNumber: "" };
+    expect(isCacheAddressMatch(cache, config)).toBe(false);
+  });
+
+  it("getCacheKey ändert sich bei anderem addressKey und Berlin-Recycling-Providerstatus", () => {
+    const base = {
+      addressKey: "key-a",
+      street: "",
+      houseNumber: "",
+      berlinRecycling: { enabled: false, usePortal: true },
+    };
+    expect(getCacheKey(base)).not.toBe(getCacheKey({ ...base, addressKey: "key-b" }));
+    expect(getCacheKey(base)).not.toBe(
+      getCacheKey({ ...base, berlinRecycling: { enabled: true, usePortal: true } })
+    );
   });
 });
 
