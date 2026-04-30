@@ -1,6 +1,6 @@
-import { filterByCategories, sortByDate } from "../utils.js";
+const { filterByCategories, sortByDate } = require("../utils.js");
 
-export function mergeProviderDates(dateGroups, categories) {
+function mergeProviderDates(dateGroups, categories) {
   const seen = new Set();
   const merged = [];
 
@@ -16,3 +16,7 @@ export function mergeProviderDates(dateGroups, categories) {
 
   return sortByDate(filterByCategories(merged, categories));
 }
+
+module.exports = {
+  mergeProviderDates,
+};

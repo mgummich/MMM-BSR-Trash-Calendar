@@ -109,10 +109,15 @@ Module.register("MMM-BSR-Trash-Calendar", {
         entry.classList.add("tomorrow");
       }
 
-      // Icon
+      // Icon — use BSR SVG if available, fall back to Font Awesome
       const icon = document.createElement("span");
-      icon.className = `bsr-category-icon fa ${pickup.icon}`;
-      icon.style.color = pickup.color;
+      icon.className = "bsr-category-icon";
+      if (pickup.svgIcon) {
+        icon.innerHTML = pickup.svgIcon;
+      } else {
+        icon.classList.add("fa", pickup.icon);
+        icon.style.color = pickup.color;
+      }
       entry.appendChild(icon);
 
       // Category name

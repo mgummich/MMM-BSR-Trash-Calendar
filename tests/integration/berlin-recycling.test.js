@@ -3,11 +3,11 @@ import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
-import { URL, fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const NODE_HELPER_FILE = path.resolve(TEST_DIR, "../../node_helper.js");
+const requireFromNodeHelper = createRequire(NODE_HELPER_FILE);
 
 const VALID_CONFIG = {
   street: "Bergmannstr.",
@@ -53,28 +53,18 @@ function brPublicResponse(date = "2099-06-10") {
 }
 
 function loadHelper() {
-  const source = fs
-    .readFileSync(NODE_HELPER_FILE, "utf8")
-    .replace(/\bimport\s*\(/g, "__dynamicImport(");
+  const source = fs.readFileSync(NODE_HELPER_FILE, "utf8");
   const module = { exports: {} };
   const localRequire = (request) => {
     if (request === "node_helper") {
       return { create: (definition) => definition };
     }
-    return require(request);
+    return requireFromNodeHelper(request);
   };
-  const wrapped = `(function (require, module, exports, __dirname, __filename, __dynamicImport) { ${source}\n})`;
+  const wrapped = `(function (require, module, exports, __dirname, __filename) { ${source}\n})`;
   const script = new vm.Script(wrapped, { filename: NODE_HELPER_FILE });
   const fn = script.runInThisContext();
-  const dynamicImport = (specifier) => import(new URL(specifier, pathToFileURL(NODE_HELPER_FILE)));
-  fn(
-    localRequire,
-    module,
-    module.exports,
-    path.dirname(NODE_HELPER_FILE),
-    NODE_HELPER_FILE,
-    dynamicImport
-  );
+  fn(localRequire, module, module.exports, path.dirname(NODE_HELPER_FILE), NODE_HELPER_FILE);
   return module.exports;
 }
 

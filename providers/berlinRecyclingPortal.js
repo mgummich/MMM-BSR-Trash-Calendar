@@ -1,13 +1,10 @@
-import {
+const {
   mapBerlinRecyclingCategory,
   parseBerlinRecyclingPublicDates,
-} from "./berlinRecyclingPublic.js";
-import { filterPastDates, getCategoryDisplay, sortByDate } from "../utils.js";
+} = require("./berlinRecyclingPublic.js");
+const { filterPastDates, getCategoryDisplay, sortByDate } = require("../utils.js");
 
-export function parseBerlinRecyclingPortalDates(
-  response,
-  today = new Date().toISOString().slice(0, 10)
-) {
+function parseBerlinRecyclingPortalDates(response, today = new Date().toISOString().slice(0, 10)) {
   if (Array.isArray(response?.dates)) {
     return parseBerlinRecyclingPublicDates(response, today);
   }
@@ -35,7 +32,7 @@ export function parseBerlinRecyclingPortalDates(
   return sortByDate(filterPastDates(dates, today));
 }
 
-export async function fetchBerlinRecyclingPortalDates(executeApiCall, credentials) {
+async function fetchBerlinRecyclingPortalDates(executeApiCall, credentials) {
   if (!credentials.username || !credentials.password) {
     const error = new Error("Berlin Recycling credentials missing");
     error.type = "BR_AUTH_FAILED";
@@ -63,3 +60,8 @@ export async function fetchBerlinRecyclingPortalDates(executeApiCall, credential
   );
   return parseBerlinRecyclingPortalDates(calendar);
 }
+
+module.exports = {
+  parseBerlinRecyclingPortalDates,
+  fetchBerlinRecyclingPortalDates,
+};

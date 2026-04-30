@@ -2,18 +2,21 @@
  * node_helper.js — Node_Helper for MMM-BSR-Trash-Calendar
  *
  * Handles BSR API communication, caching, retry logic, and socket notifications.
- * Must use CommonJS (require/module.exports) because MagicMirror² requires it,
- * even though the rest of the project uses ESM ("type": "module" in package.json).
- *
- * Utils (ESM) are loaded via dynamic import() in start().
+ * Must use CommonJS (require/module.exports) because MagicMirror² requires it.
  */
 
 "use strict";
 
 const NodeHelper = require("node_helper");
 const path = require("path");
+const utils = require("./utils.js");
+const { resolveBsrAddress, fetchBsrPickupDates } = require("./providers/bsr.js");
+const { fetchBerlinRecyclingPortalDates } = require("./providers/berlinRecyclingPortal.js");
+const { fetchBerlinRecyclingPublicDates } = require("./providers/berlinRecyclingPublic.js");
+const { mergeProviderDates } = require("./providers/merge.js");
 
 const CACHE_PATH = path.join(__dirname, "cache.json");
+const ICONS_DIR = path.join(__dirname, "icons");
 
 module.exports = NodeHelper.create({
   // ---------------------------------------------------------------------------
@@ -44,9 +47,6 @@ module.exports = NodeHelper.create({
   /** @type {Array|null} Last successfully fetched pickup dates */
   currentData: null,
 
-  /** @type {object|null} Lazily loaded utils module (ESM, loaded via dynamic import) */
-  _utils: null,
-
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
@@ -63,16 +63,8 @@ module.exports = NodeHelper.create({
     this.config = null;
     this.addressKey = null;
     this.currentData = null;
-    this._utils = null;
 
-    // Pre-load the ESM utils module so it is ready when the first notification arrives.
-    import("./utils.js")
-      .then((utils) => {
-        this._utils = utils;
-      })
-      .catch((err) => {
-        console.error("[MMM-BSR-Trash-Calendar] Failed to load utils.js:", err);
-      });
+    console.log("[MMM-BSR-Trash-Calendar] Node helper started");
   },
 
   // ---------------------------------------------------------------------------
@@ -89,21 +81,7 @@ module.exports = NodeHelper.create({
       return;
     }
 
-    // Ensure utils are loaded (lazy fallback in case start() import hasn't resolved yet)
-    if (!this._utils) {
-      try {
-        this._utils = await import("./utils.js");
-      } catch (err) {
-        console.error("[MMM-BSR-Trash-Calendar] Cannot load utils.js:", err);
-        this.sendSocketNotification("BSR_ERROR", {
-          message: "Internal error: utils not available",
-          type: "CONFIG_ERROR",
-        });
-        return;
-      }
-    }
-
-    const { validateConfig } = this._utils;
+    const { validateConfig } = utils;
 
     // 1. Validate configuration
     const validation = validateConfig(payload);
@@ -139,7 +117,7 @@ module.exports = NodeHelper.create({
    * Called on init and on each retry/update tick.
    */
   async _fetchAndUpdate() {
-    const { isCacheValid, isCacheAddressMatch } = this._utils;
+    const { isCacheValid, isCacheAddressMatch } = utils;
 
     // 3. Load cache
     const cache = this.loadCache();
@@ -164,23 +142,28 @@ module.exports = NodeHelper.create({
 
     // 4. Resolve address if we don't have one yet
     if (!this.addressKey) {
-      let key;
-      try {
-        key = await this.resolveAddress(this.config.street, this.config.houseNumber);
-      } catch (err) {
-        this.handleApiError(err);
-        return;
-      }
+      // Use directly configured addressKey if provided, skip API lookup
+      if (this.config.addressKey) {
+        this.addressKey = this.config.addressKey;
+      } else {
+        let key;
+        try {
+          key = await this.resolveAddress(this.config.street, this.config.houseNumber);
+        } catch (err) {
+          this.handleApiError(err);
+          return;
+        }
 
-      if (!key) {
-        this.sendSocketNotification("BSR_ERROR", {
-          message: "Adresse nicht gefunden",
-          type: "ADDRESS_NOT_FOUND",
-        });
-        return;
-      }
+        if (!key) {
+          this.sendSocketNotification("BSR_ERROR", {
+            message: "Adresse nicht gefunden",
+            type: "ADDRESS_NOT_FOUND",
+          });
+          return;
+        }
 
-      this.addressKey = key;
+        this.addressKey = key;
+      }
     }
 
     // 5. Fetch pickup dates for current + next month
@@ -193,7 +176,6 @@ module.exports = NodeHelper.create({
     }
 
     const berlinRecyclingDates = await this.fetchBerlinRecyclingDates();
-    const { mergeProviderDates } = await import("./providers/merge.js");
     dates = mergeProviderDates([dates, berlinRecyclingDates], this.config.categories);
 
     // 6. Success
@@ -211,7 +193,6 @@ module.exports = NodeHelper.create({
    * @returns {Promise<string|null>} Address key, or null if not found
    */
   async resolveAddress(street, houseNumber) {
-    const { resolveBsrAddress } = await import("./providers/bsr.js");
     return resolveBsrAddress(this.executeApiCall.bind(this), street, houseNumber);
   },
 
@@ -221,8 +202,7 @@ module.exports = NodeHelper.create({
    * @returns {Promise<Array>} Combined, parsed pickup dates
    */
   async fetchPickupDates(addressKey) {
-    const { fetchBsrPickupDates } = await import("./providers/bsr.js");
-    return fetchBsrPickupDates(this.executeApiCall.bind(this), this._utils, addressKey);
+    return fetchBsrPickupDates(this.executeApiCall.bind(this), utils, addressKey);
   },
 
   /**
@@ -238,8 +218,6 @@ module.exports = NodeHelper.create({
 
     if (brConfig.usePortal) {
       try {
-        const { fetchBerlinRecyclingPortalDates } =
-          await import("./providers/berlinRecyclingPortal.js");
         return await fetchBerlinRecyclingPortalDates(this.executeApiCall.bind(this), {
           username: process.env.BERLIN_RECYCLING_USERNAME,
           password: process.env.BERLIN_RECYCLING_PASSWORD,
@@ -251,8 +229,6 @@ module.exports = NodeHelper.create({
 
     if (brConfig.usePublicFallback) {
       try {
-        const { fetchBerlinRecyclingPublicDates } =
-          await import("./providers/berlinRecyclingPublic.js");
         return await fetchBerlinRecyclingPublicDates(this.executeApiCall.bind(this), this.config);
       } catch (err) {
         console.warn("[MMM-BSR-Trash-Calendar] Berlin Recycling public fetch failed:", err.message);
@@ -272,8 +248,7 @@ module.exports = NodeHelper.create({
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
-      // node-fetch is an ESM-only package in v3; use dynamic import
-      const { default: fetch } = await import("node-fetch");
+      const fetch = require("node-fetch");
       const res = await fetch(url, { ...options, signal: controller.signal });
 
       if (!res.ok) {
@@ -302,8 +277,7 @@ module.exports = NodeHelper.create({
    * @returns {object|null}
    */
   loadCache() {
-    const { loadCache } = this._utils;
-    return loadCache(CACHE_PATH);
+    return utils.loadCache(CACHE_PATH);
   },
 
   /**
@@ -311,8 +285,7 @@ module.exports = NodeHelper.create({
    * @param {object} data
    */
   saveCache(data) {
-    const { saveCache } = this._utils;
-    saveCache(CACHE_PATH, data);
+    utils.saveCache(CACHE_PATH, data);
   },
 
   // ---------------------------------------------------------------------------
@@ -334,19 +307,26 @@ module.exports = NodeHelper.create({
       this.retryTimer = null;
     }
 
-    this.currentData = dates;
+    // Embed SVG icon content into each pickup date
+    const datesWithIcons = dates.map((d) => {
+      const categoryInfo = utils.CATEGORY_MAP[d.category];
+      const svgContent = categoryInfo ? utils.loadSvgIcon(ICONS_DIR, categoryInfo.svgFile) : null;
+      return { ...d, svgIcon: svgContent };
+    });
+
+    this.currentData = datesWithIcons;
 
     // Persist to cache
     this.saveCache({
       street: this.config.street,
       houseNumber: this.config.houseNumber,
       addressKey: this.addressKey,
-      pickupDates: dates,
+      pickupDates: datesWithIcons,
       lastFetchTimestamp: Date.now(),
     });
 
     // Notify frontend
-    this.sendSocketNotification("BSR_PICKUP_DATA", { dates });
+    this.sendSocketNotification("BSR_PICKUP_DATA", { dates: datesWithIcons });
 
     // Restart regular update interval
     this.scheduleUpdate(this.config.updateInterval);
@@ -365,7 +345,7 @@ module.exports = NodeHelper.create({
       this.updateTimer = null;
     }
 
-    const delay = this._utils.calculateRetryDelay(this.retryCount);
+    const delay = utils.calculateRetryDelay(this.retryCount);
     this.retryCount++;
 
     // If we have cached data, keep showing it; otherwise send an error

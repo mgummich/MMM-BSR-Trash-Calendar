@@ -40,15 +40,21 @@
 /* Color is set inline via pickup.color (CATEGORY_MAP) */
 
 .bsr-category-icon {
-  width: 1.2em;
+  width: 2em;
+  height: 2em;
   text-align: center;
   flex-shrink: 0;
-  /* Individual category colors applied via inline style from CATEGORY_MAP:
-     BI (Biogut)        → #8B4513
-     HM (Hausmüll)      → #808080
-     LT (Laubtonne)     → #228B22
-     WS (Wertstoffe)    → #FFD700
-     WB (Weihnachtsbaum)→ #006400 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.bsr-category-icon svg {
+  width: 2em;
+  height: 2em;
+  display: block;
 }
 
 /* ── Category name ─────────────────────────────────────────────────────── */

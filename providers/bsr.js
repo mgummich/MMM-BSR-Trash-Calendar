@@ -1,6 +1,6 @@
-export async function resolveBsrAddress(executeApiCall, street, houseNumber) {
+async function resolveBsrAddress(executeApiCall, street, houseNumber) {
   const url =
-    `https://umnewforms.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet` +
+    `https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet` +
     `?searchQuery=${encodeURIComponent(street)}:::${encodeURIComponent(houseNumber)}`;
 
   const data = await executeApiCall(url);
@@ -12,17 +12,21 @@ export async function resolveBsrAddress(executeApiCall, street, houseNumber) {
   return data[0].value;
 }
 
-export async function fetchBsrPickupDates(executeApiCall, utils, addressKey, now = new Date()) {
+async function fetchBsrPickupDates(executeApiCall, utils, addressKey, now = new Date()) {
   const months = utils.getMonthRange(now);
   const allDates = [];
+  const categories =
+    "Category eq 'HM' or Category eq 'BI' or Category eq 'WS' or Category eq 'LT' or Category eq 'WB'";
 
   for (const { year, month } of months) {
     const mm = String(month).padStart(2, "0");
+    const lastDay = String(new Date(year, month, 0).getDate()).padStart(2, "0");
     const url =
-      `https://umnewforms.bsr.de/p/de.bsr.adressen.app/abfuhrEvents` +
+      `https://umapi.bsr.de/p/de.bsr.adressen.app/abfuhrEvents` +
       `?filter=AddrKey eq '${addressKey}'` +
       ` and DateFrom eq datetime'${year}-${mm}-01T00:00:00'` +
-      ` and DateTo eq datetime'${year}-${mm}-01T00:00:00'`;
+      ` and DateTo eq datetime'${year}-${mm}-${lastDay}T00:00:00'` +
+      ` and (${categories})`;
 
     const data = await executeApiCall(url);
     const parsed = utils.parsePickupDates(data);
@@ -31,3 +35,8 @@ export async function fetchBsrPickupDates(executeApiCall, utils, addressKey, now
 
   return allDates.map((date) => ({ ...date, provider: "BSR" }));
 }
+
+module.exports = {
+  resolveBsrAddress,
+  fetchBsrPickupDates,
+};

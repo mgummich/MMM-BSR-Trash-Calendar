@@ -50,6 +50,64 @@ describe("validateConfig", () => {
     });
   });
 
+  // BDD-Szenario 28: Direkter addressKey überspringt Adressauflösung
+  describe("Szenario 28: Direkter addressKey in Konfiguration", () => {
+    it("should accept config with only addressKey (no street/houseNumber)", () => {
+      // Given: A config with only addressKey
+      const config = { addressKey: "10965_Bergmannstr._12" };
+
+      // When: validateConfig is called
+      const result = validateConfig(config);
+
+      // Then: Returns valid config without error
+      expect(result.error).toBeUndefined();
+      expect(result.config).toBeDefined();
+      expect(result.config.addressKey).toBe("10965_Bergmannstr._12");
+    });
+
+    it("should set addressKey in config when provided alongside street/houseNumber", () => {
+      // Given: A config with addressKey and street/houseNumber
+      const config = {
+        addressKey: "10965_Bergmannstr._12",
+        street: "Bergmannstr.",
+        houseNumber: "12",
+      };
+
+      // When: validateConfig is called
+      const result = validateConfig(config);
+
+      // Then: addressKey is preserved
+      expect(result.error).toBeUndefined();
+      expect(result.config.addressKey).toBe("10965_Bergmannstr._12");
+    });
+
+    it("should set addressKey to null when not provided", () => {
+      // Given: A config without addressKey
+      const config = { street: "Bergmannstr.", houseNumber: "12" };
+
+      // When: validateConfig is called
+      const result = validateConfig(config);
+
+      // Then: addressKey is null
+      expect(result.error).toBeUndefined();
+      expect(result.config.addressKey).toBeNull();
+    });
+  });
+
+  // BDD-Szenario 29: Weder addressKey noch street+houseNumber
+  describe("Szenario 29: Weder addressKey noch street+houseNumber", () => {
+    it("should return error when neither addressKey nor street+houseNumber are provided", () => {
+      // Given: Empty config
+      const config = {};
+
+      // When: validateConfig is called
+      const result = validateConfig(config);
+
+      // Then: Returns an error
+      expect(result.error).toBeDefined();
+    });
+  });
+
   // Standard values for optional parameters
   describe("Standardwerte für optionale Parameter", () => {
     it("should return config with defaults when only required fields are provided", () => {
