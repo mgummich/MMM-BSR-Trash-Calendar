@@ -196,15 +196,21 @@ berlinRecycling: {
 }
 ```
 
-Portal credentials are read from environment variables:
+Portal credentials can live in a `.env` file in this module directory:
 
 ```bash
-export BERLIN_RECYCLING_USERNAME="your-login"
-export BERLIN_RECYCLING_PASSWORD="your-password"
+cp .env.example .env
 ```
 
-For PM2 setups, define these variables in the shell or ecosystem file that starts
-MagicMirror. Credentials are never written to `cache.json`.
+Then edit `.env`:
+
+```bash
+BERLIN_RECYCLING_USERNAME=your-login
+BERLIN_RECYCLING_PASSWORD=your-password
+```
+
+Restart MagicMirror after changing `.env`. Credentials are never written to `cache.json`
+and `.env` is ignored by git.
 
 Provider behavior:
 

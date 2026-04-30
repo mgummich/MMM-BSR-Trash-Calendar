@@ -9,6 +9,8 @@
 
 const NodeHelper = require("node_helper");
 const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
+
 const utils = require("./utils.js");
 const { resolveBsrAddress, fetchBsrPickupDates } = require("./providers/bsr.js");
 const { fetchBerlinRecyclingPortalDates } = require("./providers/berlinRecyclingPortal.js");
