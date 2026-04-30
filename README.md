@@ -91,6 +91,9 @@ Use this if you already know the BSR address key and want to skip address lookup
 }
 ```
 
+`addressKey` is BSR-specific. If you also enable Berlin Recycling, still provide
+`street` and `houseNumber` so Berlin Recycling public fallback can search that address.
+
 Address lookup URL example:
 
 ```text
@@ -134,6 +137,7 @@ https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr
     dateFormat: "dd.MM.yyyy",
     maxEntries: 5,
     categories: ["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"],
+    debug: false,
 
     // Refresh
     updateInterval: 86400000,
@@ -159,6 +163,7 @@ https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr
 | `maxEntries`      | `number`   | `5`                                                            | No       | Maximum number of upcoming dates shown.                                                                  |
 | `updateInterval`  | `number`   | `86400000`                                                     | No       | Refresh interval in milliseconds. Default is 24 hours.                                                   |
 | `categories`      | `string[]` | `["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"]`             | No       | Categories shown from all providers. Empty or invalid lists fall back to all categories.                 |
+| `debug`           | `boolean`  | `false`                                                        | No       | Enables detailed Node helper logs for cache, API, provider, merge, retry, and scheduling decisions.      |
 | `berlinRecycling` | `object`   | `{ enabled: false, usePortal: true, usePublicFallback: true }` | No       | Optional Berlin Recycling provider. Portal credentials come from environment variables, not `config.js`. |
 
 ¹ Provide either `addressKey` or both `street` and `houseNumber`.
@@ -217,6 +222,8 @@ Provider behavior:
 - `usePortal: true`: try authenticated Berlin Recycling portal first.
 - `usePublicFallback: true`: use public tenant street-search dates if portal credentials
   are missing or portal login fails.
+- `addressKey` is not used by Berlin Recycling. Keep `street` and `houseNumber` in config
+  when Berlin Recycling fallback should work.
 - Berlin Recycling failures do not hide successful BSR dates.
 
 ## API and Cache Behavior
@@ -277,6 +284,7 @@ pm2 start MagicMirror
 | Stale data                 | Delete `cache.json` and restart MagicMirror.                                                                 |
 | No Berlin Recycling dates  | Check env vars, keep `usePublicFallback: true`, and include BR categories like `PP` or `GL` in `categories`. |
 | No data after restart      | Check MagicMirror logs for `[MMM-BSR-Trash-Calendar]`. API retry runs automatically.                         |
+| Need more debug detail     | Set `debug: true` in module config, restart MagicMirror, then check logs for cache/API/provider steps.       |
 | Too many or few entries    | Adjust `maxEntries`.                                                                                         |
 | Wrong categories displayed | Adjust `categories`; it filters all providers.                                                               |
 

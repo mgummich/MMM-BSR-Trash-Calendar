@@ -1,18 +1,34 @@
 const { filterPastDates, getCategoryDisplay, sortByDate } = require("../utils.js");
 
-const FRACTION_TO_CATEGORY = {
-  papier: "PP",
-  paper: "PP",
-  glas: "GL",
-  glass: "GL",
-  gewerbeabfall: "GW",
-};
-
 function mapBerlinRecyclingCategory(value) {
   const key = String(value || "")
     .trim()
     .toLowerCase();
-  return FRACTION_TO_CATEGORY[key] ?? null;
+
+  if (!key) {
+    return null;
+  }
+  if (
+    key.includes("papier") ||
+    key.includes("pappe") ||
+    key.includes("karton") ||
+    key.includes("paper")
+  ) {
+    return "PP";
+  }
+  if (key.includes("glas") || key.includes("glass")) {
+    return "GL";
+  }
+  if (key.includes("gewerbe")) {
+    return "GW";
+  }
+  if (key.includes("restabfall") || key.includes("hausmüll") || key.includes("siedlungsabfall")) {
+    return "HM";
+  }
+  if (key.includes("wertstoff")) {
+    return "WS";
+  }
+  return null;
 }
 
 function parseBerlinRecyclingPublicDates(response, today = new Date().toISOString().slice(0, 10)) {
