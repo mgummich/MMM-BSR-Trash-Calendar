@@ -40,17 +40,27 @@ function unwrapAspNetJson(response) {
   return body;
 }
 
+function createPortalResponseError() {
+  const error = new Error("Berlin Recycling portal response missing calendar data");
+  error.type = "BR_PORTAL_RESPONSE_INVALID";
+  return error;
+}
+
 function parseBerlinRecyclingPortalDates(response, today = new Date().toISOString().slice(0, 10)) {
   if (Array.isArray(response?.dates)) {
     return parseBerlinRecyclingPublicDates(response, today);
   }
 
   const data = unwrapAspNetJson(response);
-  const rows = Array.isArray(data?.appointments)
-    ? data.appointments
-    : Array.isArray(data?.Object?.data)
-      ? data.Object.data
-      : [];
+  let rows;
+  if (Array.isArray(data?.appointments)) {
+    rows = data.appointments;
+  } else if (Array.isArray(data?.Object?.data)) {
+    rows = data.Object.data;
+  } else {
+    throw createPortalResponseError();
+  }
+
   const dates = rows.flatMap((row) => {
     const material =
       row.material ||
@@ -89,6 +99,7 @@ async function fetchBerlinRecyclingPortalDates(executeApiCall, credentials) {
 
   let cookieHeader = "";
   const initial = await executeApiCall(SERVICE_URL, {
+    allowRedirectStatus: true,
     includeHeaders: true,
     redirect: "manual",
     responseType: "text",

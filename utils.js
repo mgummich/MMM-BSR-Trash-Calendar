@@ -180,7 +180,7 @@ function validateConfig(config) {
   const berlinRecycling = {
     enabled: config.berlinRecycling?.enabled ?? false,
     usePortal: config.berlinRecycling?.usePortal ?? true,
-    usePublicFallback: config.berlinRecycling?.usePublicFallback ?? true,
+    usePublicFallback: config.berlinRecycling?.usePublicFallback ?? false,
   };
 
   return {

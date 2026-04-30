@@ -19,7 +19,7 @@ const VALID_CONFIG = {
   berlinRecycling: {
     enabled: true,
     usePortal: true,
-    usePublicFallback: true,
+    usePublicFallback: false,
   },
 };
 
@@ -43,12 +43,6 @@ function bsrCalendarResponse(date = "2099-06-15") {
         },
       ],
     },
-  };
-}
-
-function brPublicResponse(date = "2099-06-10") {
-  return {
-    dates: [{ date, fraction: "Papier" }],
   };
 }
 
@@ -98,40 +92,45 @@ describe("Berlin Recycling node_helper orchestration", () => {
     vi.restoreAllMocks();
   });
 
-  it("merges BSR and Berlin Recycling public dates", async () => {
+  it("keeps BSR output when Berlin Recycling portal credentials are missing", async () => {
     process.env.BERLIN_RECYCLING_USERNAME = "";
     process.env.BERLIN_RECYCLING_PASSWORD = "";
     const executeApiCall = vi
       .fn()
       .mockResolvedValueOnce(bsrAddressResponse())
       .mockResolvedValueOnce(bsrCalendarResponse("2099-06-15"))
-      .mockResolvedValueOnce({ dates: {} })
-      .mockResolvedValueOnce(brPublicResponse("2099-06-10"));
+      .mockResolvedValueOnce({ dates: {} });
     const { helper, notifications } = setupHelper({ executeApiCall });
 
     await helper.socketNotificationReceived("BSR_INIT_MODULE", VALID_CONFIG);
 
     const data = notifications.find((n) => n.notification === "BSR_PICKUP_DATA")?.payload.dates;
-    expect(data.map((date) => date.category)).toEqual(["PP", "HM"]);
-    expect(data.map((date) => date.disposalCompany)).toContain("Berlin Recycling");
+    expect(executeApiCall).toHaveBeenCalledTimes(3);
+    expect(notifications.some((n) => n.notification === "BSR_ERROR")).toBe(false);
+    expect(data).toHaveLength(1);
+    expect(data[0]).toMatchObject({ category: "HM", disposalCompany: "BSR" });
   });
 
-  it("falls back to public provider when portal credentials are missing", async () => {
+  it("keeps BSR output when explicit Berlin Recycling public fallback is unsupported", async () => {
     process.env.BERLIN_RECYCLING_USERNAME = "";
     process.env.BERLIN_RECYCLING_PASSWORD = "";
     const executeApiCall = vi
       .fn()
       .mockResolvedValueOnce(bsrAddressResponse())
-      .mockResolvedValueOnce(bsrCalendarResponse())
-      .mockResolvedValueOnce({ dates: {} })
-      .mockResolvedValueOnce(brPublicResponse());
+      .mockResolvedValueOnce(bsrCalendarResponse("2099-06-15"))
+      .mockResolvedValueOnce({ dates: {} });
     const { helper, notifications } = setupHelper({ executeApiCall });
 
-    await helper.socketNotificationReceived("BSR_INIT_MODULE", VALID_CONFIG);
+    await helper.socketNotificationReceived("BSR_INIT_MODULE", {
+      ...VALID_CONFIG,
+      berlinRecycling: { enabled: true, usePortal: true, usePublicFallback: true },
+    });
 
-    expect(executeApiCall).toHaveBeenCalledTimes(4);
+    const data = notifications.find((n) => n.notification === "BSR_PICKUP_DATA")?.payload.dates;
+    expect(executeApiCall).toHaveBeenCalledTimes(3);
     expect(notifications.some((n) => n.notification === "BSR_ERROR")).toBe(false);
-    expect(notifications.at(-1).payload.dates.some((date) => date.category === "PP")).toBe(true);
+    expect(data).toHaveLength(1);
+    expect(data[0]).toMatchObject({ category: "HM", disposalCompany: "BSR" });
   });
 
   it("keeps BSR output when Berlin Recycling fails", async () => {
@@ -160,8 +159,7 @@ describe("Berlin Recycling node_helper orchestration", () => {
       .fn()
       .mockResolvedValueOnce(bsrAddressResponse())
       .mockResolvedValueOnce(bsrCalendarResponse())
-      .mockResolvedValueOnce({ dates: {} })
-      .mockResolvedValueOnce(brPublicResponse());
+      .mockResolvedValueOnce({ dates: {} });
     const { helper } = setupHelper({ executeApiCall });
 
     await helper.socketNotificationReceived("BSR_INIT_MODULE", {

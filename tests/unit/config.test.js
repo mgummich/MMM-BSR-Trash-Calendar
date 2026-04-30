@@ -159,7 +159,7 @@ describe("validateConfig", () => {
       expect(result.config.berlinRecycling).toEqual({
         enabled: false,
         usePortal: true,
-        usePublicFallback: true,
+        usePublicFallback: false,
       });
     });
 

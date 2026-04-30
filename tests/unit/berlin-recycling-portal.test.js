@@ -42,6 +42,12 @@ describe("Berlin Recycling portal provider", () => {
     ]);
   });
 
+  it("rejects malformed Berlin Recycling portal responses", () => {
+    expect(() => parseBerlinRecyclingPortalDates({ d: JSON.stringify({ Object: {} }) })).toThrow(
+      "Berlin Recycling portal response missing calendar data"
+    );
+  });
+
   it("uses the Berlin Recycling portal login flow before fetching calendar", async () => {
     const execute = vi
       .fn()
@@ -59,6 +65,11 @@ describe("Berlin Recycling portal provider", () => {
 
     expect(execute).toHaveBeenCalledTimes(5);
     expect(execute.mock.calls[0][0]).toBe("https://kundenportal.berlin-recycling.de/");
+    expect(execute.mock.calls[0][1]).toMatchObject({
+      allowRedirectStatus: true,
+      redirect: "manual",
+      responseType: "text",
+    });
     expect(execute.mock.calls[1][0]).toBe(
       "https://kundenportal.berlin-recycling.de/Login.aspx/Auth"
     );

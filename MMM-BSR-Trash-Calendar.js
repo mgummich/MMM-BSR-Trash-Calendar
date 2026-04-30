@@ -19,7 +19,7 @@ Module.register("MMM-BSR-Trash-Calendar", {
     berlinRecycling: {
       enabled: false,
       usePortal: true,
-      usePublicFallback: true,
+      usePublicFallback: false,
     },
   },
 

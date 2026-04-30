@@ -14,7 +14,9 @@ require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 const utils = require("./utils.js");
 const { resolveBsrAddress, fetchBsrPickupDates } = require("./providers/bsr.js");
 const { fetchBerlinRecyclingPortalDates } = require("./providers/berlinRecyclingPortal.js");
-const { fetchBerlinRecyclingPublicDates } = require("./providers/berlinRecyclingPublic.js");
+const {
+  rejectUnsupportedBerlinRecyclingPublicFallback,
+} = require("./providers/berlinRecyclingPublic.js");
 const { mergeProviderDates } = require("./providers/merge.js");
 
 const CACHE_PATH = path.join(__dirname, "cache.json");
@@ -281,7 +283,10 @@ module.exports = NodeHelper.create({
     if (brConfig.usePublicFallback) {
       try {
         this.debug("Trying Berlin Recycling public fallback");
-        return await fetchBerlinRecyclingPublicDates(this.executeApiCall.bind(this), this.config);
+        return await rejectUnsupportedBerlinRecyclingPublicFallback(
+          this.executeApiCall.bind(this),
+          this.config
+        );
       } catch (err) {
         this.warn(`Berlin Recycling public fetch failed: ${err.message}`);
       }
@@ -302,10 +307,15 @@ module.exports = NodeHelper.create({
 
     try {
       const fetch = require("node-fetch");
-      const { includeHeaders = false, responseType = "json", ...fetchOptions } = options;
+      const {
+        allowRedirectStatus = false,
+        includeHeaders = false,
+        responseType = "json",
+        ...fetchOptions
+      } = options;
       const res = await fetch(url, { ...fetchOptions, signal: controller.signal });
 
-      if (res.status >= 400) {
+      if (res.status >= 400 || (res.status >= 300 && !allowRedirectStatus)) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
