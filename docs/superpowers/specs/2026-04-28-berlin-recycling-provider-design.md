@@ -1,5 +1,12 @@
 # Berlin Recycling Provider Design
 
+> **Status: partially superseded (2026-04-30).** The public-fallback access mode described
+> below was never supported by the upstream service and has been removed: the
+> `usePublicFallback` option no longer exists, and `providers/berlinRecyclingPublic.js` is now
+> `providers/berlinRecyclingParse.js`, which only holds the shared payload parser used by the
+> portal provider. Berlin Recycling is portal-only. The cache also stores raw `providerDates`
+> instead of display-ready `pickupDates`. See `README.md` for current behavior.
+
 ## Goal
 
 Add Berlin Recycling as an additional appointment provider for `MMM-BSR-Trash-Calendar`.

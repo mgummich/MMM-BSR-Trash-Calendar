@@ -1,5 +1,10 @@
 # Berlin Recycling Provider Implementation Plan
 
+> **Status: completed, partially superseded (2026-04-30).** Steps referring to the public
+> fallback (`usePublicFallback`, `providers/berlinRecyclingPublic.js`) no longer reflect the
+> code: that access mode was removed and the module is now portal-only. Kept as a historical
+> record; see `README.md` for current behavior.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add Berlin Recycling as an optional additional provider, merging portal/public dates with existing BSR dates.

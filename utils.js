@@ -3,7 +3,35 @@
  */
 "use strict";
 
+/**
+ * A single trash pickup appointment in the module's internal, provider-neutral shape.
+ * @typedef {object} PickupDate
+ * @property {string} date - ISO date string "YYYY-MM-DD"
+ * @property {string} category - Category code, e.g. "HM" (see {@link CATEGORY_MAP})
+ * @property {string} categoryName - Human-readable category name, falls back to the raw code
+ * @property {string} color - Hex colour for the category, empty string for unknown codes
+ * @property {string} icon - Font Awesome class for the category, empty string for unknown codes
+ * @property {string} disposalCompany - Name of the disposal company
+ * @property {string} warningText - Provider warning/notice, empty string when absent
+ * @property {string} [provider] - Provider id that produced this entry ("BSR", "BERLIN_RECYCLING")
+ */
+
+/**
+ * Persisted cache file contents.
+ * @typedef {object} CacheData
+ * @property {string} [cacheKey] - Key from {@link getCacheKey}; absent in caches written by older versions
+ * @property {string} street
+ * @property {string} houseNumber
+ * @property {string|null} addressKey - Resolved BSR address key
+ * @property {PickupDate[]} [providerDates] - Raw provider dates (current format)
+ * @property {PickupDate[]} [pickupDates] - Legacy field from older cache versions
+ * @property {number} lastFetchTimestamp - Unix timestamp in ms of the last successful fetch
+ */
+
 const fs = require("fs");
+
+/** @type {Map<string, string|null>} Memoized SVG icon file contents, keyed by absolute path */
+const svgIconCache = new Map();
 
 /** @type {Record<string, {name: string, color: string, icon: string, svgFile: string}>} */
 const CATEGORY_MAP = {
@@ -198,6 +226,13 @@ function validateConfig(config) {
   };
 }
 
+/**
+ * Builds the cache identity key for a configuration.
+ * The key covers the address and the set of enabled providers, so changing either
+ * invalidates the cache (see {@link isCacheAddressMatch}).
+ * @param {object} config - Validated module configuration
+ * @returns {string} Stable JSON string used as the cache key
+ */
 function getCacheKey(config) {
   const address = config.addressKey
     ? { addressKey: config.addressKey }
@@ -240,12 +275,11 @@ function serializePickupDate(pickupDate) {
 }
 
 /**
- * Checks whether the cache is still valid (interval not expired and has future dates).
- * @param {object} cache - CacheData object
- * @param {object} _config - Module configuration (unused, kept for API consistency)
- * @param {number} now - Current Unix timestamp in ms
- * @param {number} interval - Update interval in ms
- * @returns {boolean}
+ * Reads the raw provider dates out of a cache object.
+ * Falls back to the legacy `pickupDates` field so caches written by older versions
+ * keep working, and returns an empty array when neither field is usable.
+ * @param {CacheData} cache
+ * @returns {PickupDate[]}
  */
 function getCachedProviderDates(cache) {
   if (Array.isArray(cache.providerDates)) {
@@ -254,6 +288,15 @@ function getCachedProviderDates(cache) {
   return Array.isArray(cache.pickupDates) ? cache.pickupDates : [];
 }
 
+/**
+ * Checks whether the cache is still valid: the update interval has not expired
+ * and the cache still contains at least one date that is not in the past.
+ * @param {CacheData} cache
+ * @param {object} _config - Module configuration (unused, kept for API consistency)
+ * @param {number} now - Current Unix timestamp in ms
+ * @param {number} interval - Update interval in ms
+ * @returns {boolean}
+ */
 function isCacheValid(cache, _config, now, interval) {
   if (now - cache.lastFetchTimestamp >= interval) {
     return false;
@@ -265,7 +308,9 @@ function isCacheValid(cache, _config, now, interval) {
 
 /**
  * Checks whether the cache address matches the current configuration.
- * @param {object} cache - CacheData object
+ * Prefers the versioned cache key and falls back to the plain address fields
+ * for caches written before the key existed.
+ * @param {CacheData} cache
  * @param {object} config - Module configuration
  * @returns {boolean}
  */
@@ -344,6 +389,8 @@ function saveCache(filePath, data) {
 /**
  * Loads an SVG icon file and returns its content as a string.
  * Returns null if the file cannot be read.
+ * Results (including failures) are memoized for the process lifetime; the icons
+ * ship with the module and never change at runtime. Restart to pick up new files.
  * @param {string} iconsDir - Absolute path to the icons directory
  * @param {string} svgFile - SVG filename (e.g. "HM.svg")
  * @returns {string|null}
@@ -352,11 +399,18 @@ function loadSvgIcon(iconsDir, svgFile) {
   if (!svgFile) {
     return null;
   }
-  try {
-    return fs.readFileSync(require("path").join(iconsDir, svgFile), "utf8");
-  } catch {
-    return null;
+  const filePath = require("path").join(iconsDir, svgFile);
+  if (svgIconCache.has(filePath)) {
+    return svgIconCache.get(filePath);
   }
+  let content;
+  try {
+    content = fs.readFileSync(filePath, "utf8");
+  } catch {
+    content = null;
+  }
+  svgIconCache.set(filePath, content);
+  return content;
 }
 
 module.exports = {

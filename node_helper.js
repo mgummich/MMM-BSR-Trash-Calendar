@@ -48,16 +48,29 @@ module.exports = NodeHelper.create({
   /** @type {Array|null} Last successfully fetched pickup dates */
   currentData: null,
 
+  /**
+   * Writes a prefixed message to stdout.
+   * @param {string} message
+   */
   log(message) {
     console.log(`[MMM-BSR-Trash-Calendar] ${message}`);
   },
 
+  /**
+   * Writes a prefixed message to stdout, but only when `config.debug` is enabled.
+   * No-op before the configuration has been received.
+   * @param {string} message
+   */
   debug(message) {
     if (this.config?.debug) {
       this.log(`DEBUG ${message}`);
     }
   },
 
+  /**
+   * Writes a prefixed message to stderr.
+   * @param {string} message
+   */
   warn(message) {
     console.warn(`[MMM-BSR-Trash-Calendar] ${message}`);
   },
@@ -145,13 +158,14 @@ module.exports = NodeHelper.create({
 
     // 3. Load cache
     const cache = this.loadCache();
+    let cachedProviderDates = [];
 
     if (cache && isCacheAddressMatch(cache, this.config)) {
-      const providerDates = getCachedProviderDates(cache);
-      this.debug(`Cache hit for current source config with ${providerDates.length} dates`);
+      cachedProviderDates = getCachedProviderDates(cache);
+      this.debug(`Cache hit for current source config with ${cachedProviderDates.length} dates`);
       // Cache exists and address matches → send cached data immediately
       this.addressKey = cache.addressKey;
-      this.sendPickupData(providerDates);
+      this.sendPickupData(cachedProviderDates);
 
       // If cache is still valid → schedule next update and stop
       if (isCacheValid(cache, this.config, Date.now(), this.config.updateInterval)) {
@@ -203,7 +217,7 @@ module.exports = NodeHelper.create({
     // 5. Fetch pickup dates for current + next month
     let providerDates;
     try {
-      providerDates = await this.fetchEnabledProviderDates();
+      providerDates = await this.fetchEnabledProviderDates(cachedProviderDates);
     } catch (err) {
       this.handleApiError(err);
       return;
@@ -236,17 +250,27 @@ module.exports = NodeHelper.create({
     return fetchBsrPickupDates(this.executeApiCall.bind(this), utils, addressKey);
   },
 
+  /**
+   * Lists the providers to query for the current configuration.
+   * `required: true` means a fetch failure aborts the whole cycle (retry logic);
+   * optional providers fall back to their previously cached dates instead.
+   * @returns {Array<{id: string, name: string, required: boolean, fetch: () => Promise<Array>}>}
+   */
   getEnabledProviders() {
     const providers = [
       {
+        id: "BSR",
         name: "BSR",
+        required: true,
         fetch: () => this.fetchPickupDates(this.addressKey),
       },
     ];
 
     if (this.config.berlinRecycling?.enabled && this.config.berlinRecycling?.usePortal) {
       providers.push({
+        id: "BERLIN_RECYCLING",
         name: "Berlin Recycling",
+        required: false,
         fetch: () => this.fetchBerlinRecyclingDates(),
       });
     }
@@ -254,53 +278,59 @@ module.exports = NodeHelper.create({
     return providers;
   },
 
-  async fetchEnabledProviderDates() {
+  /**
+   * Fetches all enabled providers sequentially and returns their combined raw dates.
+   * When an optional provider fails, its dates from the previous cache are reused so a
+   * temporary outage does not erase that provider from the cache and the display.
+   * @param {Array} cachedProviderDates - Raw provider dates from the current cache
+   * @returns {Promise<Array>}
+   */
+  async fetchEnabledProviderDates(cachedProviderDates = []) {
     const groups = [];
     for (const provider of this.getEnabledProviders()) {
       this.debug(`Fetching ${provider.name} pickup dates`);
-      const dates = await provider.fetch();
+      let dates;
+      try {
+        dates = await provider.fetch();
+      } catch (err) {
+        if (provider.required) {
+          throw err;
+        }
+        dates = cachedProviderDates.filter((d) => d.provider === provider.id);
+        this.warn(
+          `${provider.name} fetch failed: ${err.message}; keeping ${dates.length} cached dates`
+        );
+      }
       this.debug(`${provider.name} returned ${dates.length} dates`);
       groups.push(dates);
     }
 
-    return utils.sortByDate(groups.flat());
+    return groups.flat();
   },
 
   /**
-   * Fetches Berlin Recycling dates via portal.
+   * Fetches Berlin Recycling dates via portal. Only called when the portal is enabled.
    * @returns {Promise<Array>}
    */
   async fetchBerlinRecyclingDates() {
-    if (!this.config.berlinRecycling?.enabled) {
-      this.debug("Berlin Recycling disabled");
-      return [];
-    }
-
-    const brConfig = this.config.berlinRecycling;
-    this.debug(`Berlin Recycling enabled: portal=${brConfig.usePortal ? "on" : "off"}`);
-
-    if (brConfig.usePortal) {
-      try {
-        this.debug(
-          `Trying Berlin Recycling portal; credentials=${
-            process.env.BERLIN_RECYCLING_USERNAME && process.env.BERLIN_RECYCLING_PASSWORD
-              ? "present"
-              : "missing"
-          }`
-        );
-        return await fetchBerlinRecyclingPortalDates(this.executeApiCall.bind(this), {
-          username: process.env.BERLIN_RECYCLING_USERNAME,
-          password: process.env.BERLIN_RECYCLING_PASSWORD,
-        });
-      } catch (err) {
-        this.warn(`Berlin Recycling portal fetch failed: ${err.message}`);
-      }
-    }
-
-    this.debug("No Berlin Recycling dates available");
-    return [];
+    this.debug(
+      `Trying Berlin Recycling portal; credentials=${
+        process.env.BERLIN_RECYCLING_USERNAME && process.env.BERLIN_RECYCLING_PASSWORD
+          ? "present"
+          : "missing"
+      }`
+    );
+    return fetchBerlinRecyclingPortalDates(this.executeApiCall.bind(this), {
+      username: process.env.BERLIN_RECYCLING_USERNAME,
+      password: process.env.BERLIN_RECYCLING_PASSWORD,
+    });
   },
 
+  /**
+   * Merges, filters and sorts raw provider dates, then embeds SVG icon content.
+   * @param {Array} providerDates
+   * @returns {Array} Display-ready pickup dates
+   */
   prepareDisplayDates(providerDates) {
     const dates = mergeProviderDates([providerDates], this.config.categories);
     this.debug(`Merged and filtered to ${dates.length} dates`);
@@ -312,17 +342,31 @@ module.exports = NodeHelper.create({
     });
   },
 
+  /**
+   * Prepares raw provider dates for display, stores them and pushes them to the frontend.
+   * @param {Array} providerDates
+   * @returns {Array} The display-ready dates that were sent
+   */
   sendPickupData(providerDates) {
     const datesWithIcons = this.prepareDisplayDates(providerDates);
     this.currentData = datesWithIcons;
     this.sendSocketNotification("BSR_PICKUP_DATA", { dates: datesWithIcons });
     this.debug("Sent pickup data to frontend");
+    return datesWithIcons;
   },
 
   /**
    * Executes a single HTTP request with a 30-second timeout.
+   * Unknown options are passed straight through to `node-fetch`.
    * @param {string} url
-   * @returns {Promise<object|string>} Parsed response body
+   * @param {object} [options]
+   * @param {boolean} [options.allowRedirectStatus=false] - Treat 3xx as success instead of an error
+   * @param {boolean} [options.includeHeaders=false] - Resolve with an envelope instead of the bare body
+   * @param {"json"|"text"} [options.responseType="json"] - How to decode the response body
+   * @returns {Promise<object|string|{body: object|string, cookies: string[], headers: Record<string, string>, status: number, url: string}>}
+   *   The parsed body, or the envelope above when `includeHeaders` is set
+   * @throws {Error} On HTTP status >= 400 (and on 3xx unless `allowRedirectStatus`), or with
+   *   `type: "API_TIMEOUT"` when the request exceeds 30s
    */
   async executeApiCall(url, options = {}) {
     const controller = new AbortController();
@@ -405,24 +449,19 @@ module.exports = NodeHelper.create({
       this.retryTimer = null;
     }
 
-    const datesWithIcons = this.prepareDisplayDates(providerDates);
-    this.currentData = datesWithIcons;
+    this.sendPickupData(providerDates);
     this.debug(`Saving cache with ${providerDates.length} raw provider dates`);
 
-    // Persist to cache
+    // Persist to cache. Only raw provider dates are stored; display dates are derived
+    // on read so category/icon changes take effect without a refetch.
     this.saveCache({
       cacheKey: utils.getCacheKey(this.config),
       street: this.config.street,
       houseNumber: this.config.houseNumber,
       addressKey: this.addressKey,
       providerDates,
-      pickupDates: datesWithIcons,
       lastFetchTimestamp: Date.now(),
     });
-
-    // Notify frontend
-    this.sendSocketNotification("BSR_PICKUP_DATA", { dates: datesWithIcons });
-    this.debug("Sent pickup data to frontend");
 
     // Restart regular update interval
     this.scheduleUpdate(this.config.updateInterval);

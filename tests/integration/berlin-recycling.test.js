@@ -130,6 +130,45 @@ describe("Berlin Recycling node_helper orchestration", () => {
     expect(notifications.some((n) => n.notification === "BSR_ERROR")).toBe(false);
   });
 
+  it("keeps cached Berlin Recycling dates when the portal fetch fails", async () => {
+    process.env.BERLIN_RECYCLING_USERNAME = "user";
+    process.env.BERLIN_RECYCLING_PASSWORD = "pass";
+    const cachedBerlinRecyclingDate = {
+      date: "2099-06-10",
+      category: "PP",
+      categoryName: "Papier",
+      color: "#1E88E5",
+      icon: "fa-newspaper",
+      disposalCompany: "Berlin Recycling",
+      provider: "BERLIN_RECYCLING",
+    };
+    const cache = {
+      cacheKey: getCacheKey(VALID_CONFIG),
+      street: VALID_CONFIG.street,
+      houseNumber: VALID_CONFIG.houseNumber,
+      addressKey: "10965_Bergmannstr._12",
+      providerDates: [cachedBerlinRecyclingDate],
+      // Stale timestamp → cached data is shown, then a refresh runs
+      lastFetchTimestamp: 0,
+    };
+    const executeApiCall = vi
+      .fn()
+      .mockResolvedValueOnce(bsrCalendarResponse("2099-06-15"))
+      .mockResolvedValueOnce({ dates: {} })
+      .mockRejectedValue(new Error("BR down"));
+    const { helper, notifications } = setupHelper({ executeApiCall, loadCache: () => cache });
+
+    await helper.socketNotificationReceived("BSR_INIT_MODULE", VALID_CONFIG);
+
+    const savedProviderDates = helper.saveCache.mock.calls.at(-1)[0].providerDates;
+    expect(savedProviderDates).toContainEqual(cachedBerlinRecyclingDate);
+    expect(savedProviderDates.some((d) => d.provider === "BSR")).toBe(true);
+
+    const data = notifications.at(-1).payload.dates;
+    expect(data.map((d) => d.category).sort()).toEqual(["HM", "PP"]);
+    expect(notifications.some((n) => n.notification === "BSR_ERROR")).toBe(false);
+  });
+
   it("writes detailed debug logs when debug config is enabled", async () => {
     process.env.BERLIN_RECYCLING_USERNAME = "";
     process.env.BERLIN_RECYCLING_PASSWORD = "";

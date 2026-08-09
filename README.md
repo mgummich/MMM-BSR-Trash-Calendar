@@ -1,11 +1,17 @@
-# MMM-BSR-Trash-Calendar
+<h1 align="center">MMM-BSR-Trash-Calendar</h1>
 
-MagicMirror² module for Berlin trash pickup dates. It shows upcoming collections from
-**BSR** and, optionally, **Berlin Recycling**, with category colors, icons, warnings,
-today/tomorrow highlights, caching, and automatic refresh.
+<p align="center">
+  Upcoming Berlin trash pickup dates on your MagicMirror².<br>
+  <b>BSR</b> collections, optional <b>Berlin Recycling</b> paper/glass/commercial dates —
+  color-coded, icon-labelled, cached and self-refreshing.
+</p>
 
-![Module screenshot placeholder](docs/screenshot.png)
-_Upcoming pickup dates with color-coded waste categories._
+<p align="center">
+  <img alt="MagicMirror²" src="https://img.shields.io/badge/MagicMirror%C2%B2-module-000000">
+  <img alt="Node" src="https://img.shields.io/badge/node-%5E20.19%20%7C%7C%20%3E%3D22.12-5FA04E">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-vitest-6E9F18">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
+</p>
 
 ## Contents
 
@@ -13,6 +19,7 @@ _Upcoming pickup dates with color-coded waste categories._
 - [Installation](#installation)
 - [Configuration Recipes](#configuration-recipes)
 - [Configuration Reference](#configuration-reference)
+- [Categories](#categories)
 - [Berlin Recycling](#berlin-recycling)
 - [API and Cache Behavior](#api-and-cache-behavior)
 - [Troubleshooting](#troubleshooting)
@@ -20,15 +27,15 @@ _Upcoming pickup dates with color-coded waste categories._
 
 ## Features
 
-- Resolves Berlin street address to BSR address key automatically.
-- Supports direct `addressKey` config to skip address lookup.
-- Displays upcoming pickup dates in chronological order.
-- Supports BSR categories and optional Berlin Recycling paper/glass/commercial dates.
-- Filters displayed dates with one shared `categories` list.
-- Highlights pickups due today or tomorrow.
-- Shows provider warnings, for example holiday rescheduling.
-- Caches data in `cache.json` to reduce API calls and survive restarts.
-- Retries API failures with exponential backoff: 5, 10, 20, 40, 80, 120 minutes.
+|                         |                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| 📍 **Address lookup**   | Resolves a Berlin street + house number to the BSR address key, or takes an `addressKey` directly.       |
+| 🗓️ **Merged calendar**  | BSR categories plus optional Berlin Recycling paper, glass and commercial dates, in chronological order. |
+| 🎨 **Category styling** | Per-category color, Font Awesome icon and bundled SVG for the BSR fractions.                             |
+| 🔎 **One filter list**  | A single `categories` list filters every provider; changes apply instantly, without a refetch.           |
+| ⏰ **Today / tomorrow** | Imminent pickups are highlighted, provider warnings (e.g. holiday shifts) are shown.                     |
+| 💾 **Durable cache**    | `cache.json` survives restarts and cuts API calls; a failing optional provider keeps its cached dates.   |
+| 🔁 **Backoff retries**  | API failures retry after 5, 10, 20, 40, 80, 120 minutes.                                                 |
 
 ## Installation
 
@@ -152,32 +159,34 @@ https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr
 
 ## Configuration Reference
 
-| Parameter         | Type       | Default                                            | Required | Description                                                                                              |
-| ----------------- | ---------- | -------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| `street`          | `string`   | -                                                  | Yes¹     | Berlin street name as used by BSR, for example `"Bergmannstr."`.                                         |
-| `houseNumber`     | `string`   | -                                                  | Yes¹     | House number, for example `"12"` or `"4a"`.                                                              |
-| `addressKey`      | `string`   | -                                                  | Yes¹     | BSR address key. If set, skips address lookup.                                                           |
-| `dateFormat`      | `string`   | `"dd.MM.yyyy"`                                     | No       | Date format. Supported tokens: `dd`, `MM`, `yyyy`, `yy`.                                                 |
-| `maxEntries`      | `number`   | `5`                                                | No       | Maximum number of upcoming dates shown.                                                                  |
-| `updateInterval`  | `number`   | `86400000`                                         | No       | Refresh interval in milliseconds. Default is 24 hours.                                                   |
-| `categories`      | `string[]` | `["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"]` | No       | Categories shown from all providers. Empty or invalid lists fall back to all categories.                 |
-| `debug`           | `boolean`  | `false`                                            | No       | Enables detailed Node helper logs for cache, API, provider, merge, retry, and scheduling decisions.      |
-| `berlinRecycling` | `object`   | `{ enabled: false, usePortal: true }`              | No       | Optional Berlin Recycling provider. Portal credentials come from environment variables, not `config.js`. |
+| Parameter         | Type       | Default                                            | Required | Description                                                                                                                                                   |
+| ----------------- | ---------- | -------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `street`          | `string`   | -                                                  | Yes¹     | Berlin street name as used by BSR, for example `"Bergmannstr."`.                                                                                              |
+| `houseNumber`     | `string`   | -                                                  | Yes¹     | House number, for example `"12"` or `"4a"`.                                                                                                                   |
+| `addressKey`      | `string`   | -                                                  | Yes¹     | BSR address key. If set, skips address lookup.                                                                                                                |
+| `dateFormat`      | `string`   | `"dd.MM.yyyy"`                                     | No       | Date format. Supported tokens: `dd`, `MM`, `yyyy`, `yy`.                                                                                                      |
+| `maxEntries`      | `number`   | `5`                                                | No       | Maximum number of upcoming dates shown.                                                                                                                       |
+| `updateInterval`  | `number`   | `86400000`                                         | No       | Refresh interval in milliseconds. Default is 24 hours.                                                                                                        |
+| `categories`      | `string[]` | `["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"]` | No       | Categories shown from all providers. Empty or invalid lists fall back to all categories.                                                                      |
+| `debug`           | `boolean`  | `false`                                            | No       | Enables detailed Node helper logs for cache, API, provider, merge, retry, and scheduling decisions.                                                           |
+| `berlinRecycling` | `object`   | `{ enabled: false, usePortal: true }`              | No       | Optional Berlin Recycling provider. Active only with `enabled: true` **and** `usePortal: true`; credentials come from environment variables, not `config.js`. |
 
 ¹ Provide either `addressKey` or both `street` and `houseNumber`.
 
 ## Categories
 
-| Code | Name           | Provider         | Icon             |
-| ---- | -------------- | ---------------- | ---------------- |
-| `BI` | Biogut         | BSR              | `fa-seedling`    |
-| `HM` | Hausmüll       | BSR              | `fa-trash`       |
-| `LT` | Laubtonne      | BSR              | `fa-leaf`        |
-| `WS` | Wertstoffe     | BSR              | `fa-recycle`     |
-| `WB` | Weihnachtsbaum | BSR              | `fa-tree`        |
-| `PP` | Papier         | Berlin Recycling | `fa-newspaper`   |
-| `GL` | Glas           | Berlin Recycling | `fa-wine-bottle` |
-| `GW` | Gewerbeabfall  | Berlin Recycling | `fa-dumpster`    |
+| Code | Name           | Provider         | Icon             | Color     | Bundled SVG |
+| ---- | -------------- | ---------------- | ---------------- | --------- | ----------- |
+| `BI` | Biogut         | BSR              | `fa-seedling`    | `#8B4513` | ✅ `BI.svg` |
+| `HM` | Hausmüll       | BSR              | `fa-trash`       | `#808080` | ✅ `HM.svg` |
+| `LT` | Laubtonne      | BSR              | `fa-leaf`        | `#228B22` | ✅ `LT.svg` |
+| `WS` | Wertstoffe     | BSR              | `fa-recycle`     | `#FFD700` | ✅ `WS.svg` |
+| `WB` | Weihnachtsbaum | BSR              | `fa-tree`        | `#006400` | ✅ `WB.svg` |
+| `PP` | Papier         | Berlin Recycling | `fa-newspaper`   | `#1E88E5` | –           |
+| `GL` | Glas           | Berlin Recycling | `fa-wine-bottle` | `#43A047` | –           |
+| `GW` | Gewerbeabfall  | Berlin Recycling | `fa-dumpster`    | `#6D4C41` | –           |
+
+Categories without a bundled SVG fall back to their Font Awesome icon.
 
 Category filter examples:
 
@@ -216,9 +225,13 @@ and `.env` is ignored by git.
 
 Provider behavior:
 
-- `usePortal: true`: try authenticated Berlin Recycling portal first.
-- `addressKey` is not used by Berlin Recycling.
-- Berlin Recycling failures do not hide successful BSR dates.
+- `usePortal: true` is required — dates come from the authenticated customer portal.
+  With `enabled: true, usePortal: false` the provider stays inactive.
+- The portal has no public API. The provider logs in, carries the session cookies through
+  a fixed request chain and reads the `ABFUHRKALENDER` dataset.
+- `addressKey` is not used by Berlin Recycling; the account determines the address.
+- Berlin Recycling is an _optional_ provider: a failed fetch never aborts the cycle, never
+  hides BSR dates, and keeps its previously cached dates instead of dropping them.
 
 ## API and Cache Behavior
 
@@ -247,20 +260,30 @@ Runtime cache lives in `cache.json` inside the module directory:
 
 ```json
 {
+  "cacheKey": "{\"version\":2,\"address\":{...},\"providers\":{...}}",
   "street": "Bergmannstr.",
   "houseNumber": "12",
   "addressKey": "10965_Bergmannstr._12",
-  "pickupDates": [],
+  "providerDates": [],
   "lastFetchTimestamp": 1712345678901
 }
 ```
 
+`providerDates` holds the raw, unfiltered dates from every enabled provider. Category
+filtering and icon embedding happen on read, so changing `categories` takes effect
+immediately without a refetch. Caches written by older versions (`pickupDates`) are still
+read and are upgraded on the next successful fetch.
+
 Cache refreshes when:
 
 - configured address changes,
+- the set of enabled providers changes,
 - `updateInterval` has elapsed,
 - cache is missing, unreadable, or corrupted,
 - no future pickup dates remain.
+
+If an optional provider (Berlin Recycling) fails while BSR succeeds, its previously cached
+dates are kept instead of being dropped from the cache.
 
 Force fresh data:
 
@@ -285,19 +308,34 @@ pm2 start MagicMirror
 ## Development
 
 ```bash
-npm install
-npm run lint
+npm install          # includes dev dependencies
+npm run lint         # eslint
+npm run lint:fix
+npm run format       # prettier --write
 npm run format:check
-npm test
-npm run test:unit
-npm run test:property
-npm run test:integration
+npm test             # all vitest suites
 ```
+
+Single suites: `npm run test:unit`, `npm run test:property`, `npm run test:integration`.
 
 Live BSR API tests are skipped by default:
 
 ```bash
 BSR_LIVE_TESTS=true npx vitest run tests/integration/bsr-api.test.js
+```
+
+### Layout
+
+```text
+MMM-BSR-Trash-Calendar.js   frontend module (rendering, DOM)
+node_helper.js              fetch cycle, cache, retry, socket notifications
+utils.js                    categories, dates, cache keys, filtering
+providers/bsr.js            BSR address lookup + pickup dates
+providers/berlinRecyclingPortal.js   portal login + calendar fetch
+providers/berlinRecyclingParse.js    pure parsing helpers
+providers/merge.js          merge, filter and sort provider dates
+icons/                      bundled SVGs for the BSR categories
+tests/                      unit, property (fast-check) and integration suites
 ```
 
 ## License
