@@ -44,9 +44,12 @@ describe("release and wiki workflows", () => {
     );
   });
 
-  it("syncs root Markdown files to the GitHub Wiki only when wiki content changes", () => {
+  it("syncs the GitHub Wiki from main and only when wiki content changes", () => {
     const wikiWorkflow = readFileSync(join(workflowsDir, "wiki.yml"), "utf8");
 
+    expect(wikiWorkflow).toMatch(
+      /uses:\s*actions\/checkout@[0-9a-f]{40}\s*# v4\s*\n\s*with:\s*\n\s*ref:\s*main/
+    );
     expect(wikiWorkflow).toMatch(/branches:\s*\n\s*-\s*main/);
     expect(wikiWorkflow).toMatch(/paths:\s*\n\s*-\s*["']wiki\/\*\*["']/);
     expect(wikiWorkflow).toMatch(/workflow_dispatch:/);
