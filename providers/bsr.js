@@ -5,6 +5,8 @@
  * so the provider stays testable without network access.
  */
 
+const { URL } = require("node:url");
+
 /**
  * Resolves a street address to a BSR address key.
  * Picks the first match returned by the API.
@@ -42,20 +44,22 @@ async function resolveBsrAddress(executeApiCall, street, houseNumber) {
 async function fetchBsrPickupDates(executeApiCall, utils, addressKey, now = new Date()) {
   const months = utils.getMonthRange(now);
   const allDates = [];
+  const escapedAddressKey = String(addressKey).replace(/'/g, "''");
   const categories =
     "Category eq 'HM' or Category eq 'BI' or Category eq 'WS' or Category eq 'LT' or Category eq 'WB'";
 
   for (const { year, month } of months) {
     const mm = String(month).padStart(2, "0");
     const lastDay = String(new Date(year, month, 0).getDate()).padStart(2, "0");
-    const url =
-      `https://umapi.bsr.de/p/de.bsr.adressen.app/abfuhrEvents` +
-      `?filter=AddrKey eq '${addressKey}'` +
+    const filter =
+      `AddrKey eq '${escapedAddressKey}'` +
       ` and DateFrom eq datetime'${year}-${mm}-01T00:00:00'` +
       ` and DateTo eq datetime'${year}-${mm}-${lastDay}T00:00:00'` +
       ` and (${categories})`;
+    const url = new URL("https://umapi.bsr.de/p/de.bsr.adressen.app/abfuhrEvents");
+    url.searchParams.set("filter", filter);
 
-    const data = await executeApiCall(url);
+    const data = await executeApiCall(url.toString());
     const parsed = utils.parsePickupDates(data);
     allDates.push(...parsed);
   }
