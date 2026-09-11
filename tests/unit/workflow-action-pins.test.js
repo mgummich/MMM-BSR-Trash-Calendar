@@ -64,9 +64,7 @@ describe("release and wiki workflows", () => {
       'echo "No Markdown files found in wiki/; existing GitHub Wiki content will not be deleted."'
     );
     expect(wikiWorkflow).toContain('if ! git clone "https://x-access-token:${GITHUB_TOKEN}');
-    expect(wikiWorkflow).toContain(
-      'echo "Unable to clone the GitHub Wiki. Enable the Wiki and create an initial placeholder page in GitHub\'s Wiki UI before re-running Sync GitHub Wiki."'
-    );
+    expect(wikiWorkflow).toContain("::warning::Unable to clone the GitHub Wiki.");
     expect(wikiWorkflow).toContain("rm -f -- wiki-remote/*.md");
     expect(wikiWorkflow).toContain("cp wiki/*.md wiki-remote/");
     expect(wikiWorkflow).toContain("git add --all");
