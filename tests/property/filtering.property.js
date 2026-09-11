@@ -20,7 +20,7 @@ const VALID_CATEGORIES = ["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"];
 const pickupDateArb = (category) =>
   fc.record({
     date: fc
-      .date({ min: new Date("2024-01-01"), max: new Date("2026-12-31") })
+      .date({ min: new Date("2024-01-01"), max: new Date("2026-12-31"), noInvalidDate: true })
       .map((d) => d.toISOString().slice(0, 10)),
     category: fc.constant(category),
     categoryName: fc.string({ minLength: 1, maxLength: 20 }),
