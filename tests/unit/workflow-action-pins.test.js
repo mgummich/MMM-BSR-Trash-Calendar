@@ -23,3 +23,34 @@ describe("workflow action pins", () => {
     }
   });
 });
+
+describe("release and wiki workflows", () => {
+  it("creates GitHub releases from version tags that match package.json", () => {
+    const releaseWorkflow = readFileSync(join(workflowsDir, "release.yml"), "utf8");
+
+    expect(releaseWorkflow).toMatch(/tags:\s*\n\s*-\s*["']v\*["']/);
+    expect(releaseWorkflow).toMatch(/contents:\s*write/);
+    expect(releaseWorkflow).toContain('TAG_VERSION="${GITHUB_REF_NAME#v}"');
+    expect(releaseWorkflow).toContain(
+      `PACKAGE_VERSION="$(node -p \"require('./package.json').version\")"`
+    );
+    expect(releaseWorkflow).toMatch(/if \[ "\$TAG_VERSION" != "\$PACKAGE_VERSION" \]/);
+    expect(releaseWorkflow).toContain(
+      'gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"'
+    );
+  });
+
+  it("syncs root Markdown files to the GitHub Wiki only when wiki content changes", () => {
+    const wikiWorkflow = readFileSync(join(workflowsDir, "wiki.yml"), "utf8");
+
+    expect(wikiWorkflow).toMatch(/branches:\s*\n\s*-\s*main/);
+    expect(wikiWorkflow).toMatch(/paths:\s*\n\s*-\s*["']wiki\/\*\*["']/);
+    expect(wikiWorkflow).toMatch(/workflow_dispatch:/);
+    expect(wikiWorkflow).toMatch(/contents:\s*write/);
+    expect(wikiWorkflow).toContain("https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git");
+    expect(wikiWorkflow).toContain("rm -f -- wiki-remote/*.md");
+    expect(wikiWorkflow).toContain("cp wiki/*.md wiki-remote/");
+    expect(wikiWorkflow).toContain('git diff --quiet');
+    expect(wikiWorkflow).toContain('git commit -m "docs: sync GitHub Wiki"');
+  });
+});
