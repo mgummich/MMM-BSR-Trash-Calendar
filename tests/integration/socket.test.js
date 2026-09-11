@@ -23,6 +23,7 @@ import {
   isCacheAddressMatch,
   parsePickupDates,
   calculateRetryDelay,
+  validateConfig,
 } from "../../utils.js";
 
 // ---------------------------------------------------------------------------
@@ -197,7 +198,15 @@ function createTestableHelper({ fetchFn, fsFn, cachePath = "/tmp/bsr_test_cache.
         return;
       }
 
-      this.config = payload;
+      const validation = validateConfig(payload);
+      if (validation.error) {
+        this.sendSocketNotification("BSR_ERROR", {
+          message: validation.error,
+          type: "CONFIG_ERROR",
+        });
+        return;
+      }
+      this.config = validation.config;
 
       if (this.requestLock) {
         return;
@@ -290,6 +299,26 @@ function createTestableHelper({ fetchFn, fsFn, cachePath = "/tmp/bsr_test_cache.
 // ---------------------------------------------------------------------------
 
 describe("BDD-Szenario 1: Erfolgreiche Adressauflösung → AdressSchlüssel", () => {
+  it("Gegeben: Ungültiges updateInterval — Dann: CONFIG_ERROR ohne Provider-Aufruf oder Timer", async () => {
+    const fetchFn = vi.fn();
+    const helper = createTestableHelper({ fetchFn });
+
+    await helper.socketNotificationReceived("BSR_INIT_MODULE", {
+      ...VALID_CONFIG,
+      updateInterval: 0,
+    });
+
+    expect(helper.getSentNotifications()).toEqual([
+      {
+        notification: "BSR_ERROR",
+        payload: expect.objectContaining({ type: "CONFIG_ERROR" }),
+      },
+    ]);
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(helper.config).toBeNull();
+    expect(helper.updateTimer).toBeNull();
+  });
+
   it("Gegeben: Gültige Adresse — Wenn: BSR_INIT_MODULE empfangen — Dann: AdressSchlüssel aufgelöst und Termine gesendet", async () => {
     // Given
     const fetchFn = vi
