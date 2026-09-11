@@ -205,6 +205,18 @@ function validateConfig(config) {
     return { error: `Missing required parameters: ${missing.join(", ")}` };
   }
 
+  if (
+    config.updateInterval !== undefined &&
+    config.updateInterval !== null &&
+    (!Number.isSafeInteger(config.updateInterval) ||
+      config.updateInterval < 60000 ||
+      config.updateInterval > 2147483647)
+  ) {
+    return {
+      error: "Invalid updateInterval: must be a safe integer between 60000 and 2147483647",
+    };
+  }
+
   const berlinRecycling = {
     enabled: config.berlinRecycling?.enabled ?? false,
     usePortal: config.berlinRecycling?.usePortal ?? true,

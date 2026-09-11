@@ -127,6 +127,26 @@ describe("validateConfig", () => {
       expect(result.config.categories).toEqual(VALID_CATEGORIES_WITH_BR);
     });
 
+    it.each([0, -1, "60000", {}, NaN, Infinity, 2147483648])(
+      "should reject invalid updateInterval %p",
+      (updateInterval) => {
+        const result = validateConfig({
+          street: "Bergmannstr.",
+          houseNumber: "12",
+          updateInterval,
+        });
+
+        expect(result.error).toContain("updateInterval");
+      }
+    );
+
+    it.each([60000, 2147483647])("should accept updateInterval boundary %p", (updateInterval) => {
+      const result = validateConfig({ street: "Bergmannstr.", houseNumber: "12", updateInterval });
+
+      expect(result.error).toBeUndefined();
+      expect(result.config.updateInterval).toBe(updateInterval);
+    });
+
     it("should preserve provided optional values and not override them with defaults", () => {
       // Given: A config with all fields provided
       const config = {

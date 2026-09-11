@@ -20,7 +20,9 @@ describe("Property 5: Konfigurationsvalidierung — gültige Config oder Fehler"
           houseNumber: fc.string({ minLength: 1 }),
           dateFormat: fc.option(fc.string({ minLength: 1 }), { nil: undefined }),
           maxEntries: fc.option(fc.integer({ min: 1, max: 100 }), { nil: undefined }),
-          updateInterval: fc.option(fc.integer({ min: 1000 }), { nil: undefined }),
+          updateInterval: fc.option(fc.integer({ min: 60000, max: 2147483647 }), {
+            nil: undefined,
+          }),
           categories: fc.option(fc.array(fc.constantFrom("BI", "HM", "LT", "WS", "WB")), {
             nil: undefined,
           }),
