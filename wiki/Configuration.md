@@ -1,7 +1,69 @@
 # Configuration
 
-Provide either a BSR `addressKey` or both `street` and `houseNumber`. With a street and
-house number, the module resolves the BSR address key automatically.
+Every option lives in the module's `config` block in `~/MagicMirror/config/config.js`.
+The only hard requirement: provide **either** a BSR `addressKey` **or** both `street` and
+`houseNumber`.
+
+## Reference
+
+| Option            | Type       | Default                                     | Required | Description                                                                                                                        |
+| ----------------- | ---------- | ------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `street`          | `string`   | –                                           | Yes¹     | Berlin street name as spelled by BSR, e.g. `"Bergmannstr."`.                                                                       |
+| `houseNumber`     | `string`   | –                                           | Yes¹     | House number, e.g. `"12"` or `"4a"`.                                                                                               |
+| `addressKey`      | `string`   | –                                           | Yes¹     | BSR address key. When set, address lookup is skipped.                                                                              |
+| `dateFormat`      | `string`   | `"dd.MM.yyyy"`                              | No       | Supported tokens: `dd`, `MM`, `yyyy`, `yy`.                                                                                        |
+| `maxEntries`      | `number`   | `5`                                         | No       | Maximum number of upcoming dates displayed.                                                                                        |
+| `updateInterval`  | `number`   | `86400000`                                  | No       | Refresh interval in milliseconds. Valid range `60000`–`2147483647`. Default 24 h.                                                  |
+| `categories`      | `string[]` | `["BI","HM","LT","WS","WB","PP","GL","GW"]` | No       | Categories shown, across all providers. An empty or fully invalid list falls back to all categories. See [Categories](Categories). |
+| `debug`           | `boolean`  | `false`                                     | No       | Verbose node-helper logging for config, cache, API, provider, merge, retry, and scheduling decisions.                              |
+| `berlinRecycling` | `object`   | `{ enabled: false, usePortal: true }`       | No       | Optional second provider. See [Berlin Recycling](Berlin-Recycling).                                                                |
+
+¹ Provide either `addressKey`, or both `street` and `houseNumber`.
+
+Options are read once at startup — restart MagicMirror after every change.
+
+## Recipes
+
+### Minimal — BSR only
+
+The module resolves the address key from street and house number for you.
+
+```javascript
+{
+  module: "MMM-BSR-Trash-Calendar",
+  position: "top_right",
+  header: "Abfuhrtermine",
+  config: {
+    street: "Bergmannstr.",
+    houseNumber: "12"
+  }
+}
+```
+
+### Known address key
+
+Skips the lookup request. Useful when the street spelling is ambiguous.
+
+```javascript
+{
+  module: "MMM-BSR-Trash-Calendar",
+  position: "top_right",
+  config: {
+    addressKey: "10965_Bergmannstr._12"
+  }
+}
+```
+
+To find your key, open the lookup URL in a browser:
+
+```text
+https://umapi.bsr.de/p/de.bsr.adressen.app/plzSet/plzSet?searchQuery=Bergmannstr.:::12
+```
+
+`addressKey` is BSR-specific. Berlin Recycling ignores it — that provider uses the address
+attached to the portal account.
+
+### BSR plus Berlin Recycling
 
 ```javascript
 {
@@ -20,55 +82,56 @@ house number, the module resolves the BSR address key automatically.
 }
 ```
 
-The `categories` list filters dates from every enabled provider. In the example, `HM`,
-`BI`, and `WS` are BSR categories; `PP` and `GL` are Berlin Recycling paper and glass.
-Other supported category codes are `LT` (Laubtonne), `WB` (Weihnachtsbaum), and `GW`
-(Gewerbeabfall).
+`HM`, `BI`, `WS` come from BSR; `PP` and `GL` come from the Berlin Recycling portal.
+Credentials go into `.env`, never into `config.js` — see [Berlin Recycling](Berlin-Recycling).
 
-## BSR address settings
-
-An `addressKey` is BSR-specific and can replace `street` and `houseNumber` when it is
-already known:
+### Everything, annotated
 
 ```javascript
 {
   module: "MMM-BSR-Trash-Calendar",
   position: "top_right",
+  header: "Abfuhrtermine",
   config: {
-    addressKey: "10965_Bergmannstr._12"
+    // Required: either addressKey OR street + houseNumber
+    street: "Bergmannstr.",
+    houseNumber: "12",
+    // addressKey: "10965_Bergmannstr._12",
+
+    // Display
+    dateFormat: "dd.MM.yyyy",
+    maxEntries: 5,
+    categories: ["BI", "HM", "LT", "WS", "WB", "PP", "GL", "GW"],
+    debug: false,
+
+    // Refresh
+    updateInterval: 86400000,
+
+    // Optional second provider
+    berlinRecycling: {
+      enabled: false,
+      usePortal: true
+    }
   }
 }
 ```
 
-Do not expect this key to configure Berlin Recycling; that provider uses the address in
-the authenticated customer portal account.
+## Display behavior
 
-## Berlin Recycling portal
-
-Berlin Recycling is optional and works only when both `enabled` and `usePortal` are
-`true`. Its credentials belong in a `.env` file in the module directory, never in
-`config.js`:
-
-```bash
-cp .env.example .env
-```
-
-```dotenv
-BERLIN_RECYCLING_USERNAME=your-login
-BERLIN_RECYCLING_PASSWORD=your-password
-```
-
-Restart MagicMirror after changing `.env`.
+- Dates from all enabled providers are merged and sorted chronologically, then trimmed to
+  `maxEntries`.
+- Pickups today or tomorrow are highlighted.
+- Provider warnings (for example holiday shifts announced by BSR) are shown with the list.
+- Each category has a color and icon; BSR fractions use a bundled SVG, others fall back to
+  a Font Awesome icon. See [Categories](Categories) for the full list and how to restyle.
 
 ## Privacy
 
-Treat the following as private address or account data:
+Treat these as personal data:
 
-- `.env` contains Berlin Recycling portal credentials.
-- `cache.json` contains the configured street, house number, resolved BSR address key,
-  and pickup-date data.
-- A BSR `addressKey` identifies a configured address and should not be posted in issues,
-  screenshots, or public configuration examples.
+- **`.env`** — Berlin Recycling portal credentials.
+- **`cache.json`** — configured street, house number, resolved BSR address key, and dates.
+- **`addressKey`** — identifies one specific address.
 
-Keep `.env`, `cache.json`, and local MagicMirror configuration out of version control and
-redact them before sharing logs or support requests.
+Keep all three out of version control, and redact them before pasting logs, screenshots,
+or configuration into issues.
