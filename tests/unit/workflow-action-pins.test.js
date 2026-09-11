@@ -47,10 +47,17 @@ describe("release and wiki workflows", () => {
     expect(wikiWorkflow).toMatch(/paths:\s*\n\s*-\s*["']wiki\/\*\*["']/);
     expect(wikiWorkflow).toMatch(/workflow_dispatch:/);
     expect(wikiWorkflow).toMatch(/contents:\s*write/);
-    expect(wikiWorkflow).toContain("https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git");
+    expect(wikiWorkflow).toContain("group: ${{ github.workflow }}-${{ github.ref }}");
+    expect(wikiWorkflow).toContain("cancel-in-progress: false");
+    expect(wikiWorkflow).toContain(
+      "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+    );
+    expect(wikiWorkflow).toContain('if ! compgen -G "wiki/*.md" > /dev/null; then');
+    expect(wikiWorkflow).toContain('echo "No Markdown files found in wiki/; nothing to sync."');
     expect(wikiWorkflow).toContain("rm -f -- wiki-remote/*.md");
     expect(wikiWorkflow).toContain("cp wiki/*.md wiki-remote/");
-    expect(wikiWorkflow).toContain('git diff --quiet');
+    expect(wikiWorkflow).toContain("git add --all");
+    expect(wikiWorkflow).toContain("git diff --cached --quiet");
     expect(wikiWorkflow).toContain('git commit -m "docs: sync GitHub Wiki"');
   });
 });
