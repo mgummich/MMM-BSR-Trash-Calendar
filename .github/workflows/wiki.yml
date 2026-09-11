@@ -26,10 +26,13 @@ jobs:
         shell: bash
         run: |
           if ! compgen -G "wiki/*.md" > /dev/null; then
-            echo "No Markdown files found in wiki/; nothing to sync."
+            echo "No Markdown files found in wiki/; existing GitHub Wiki content will not be deleted."
             exit 0
           fi
-          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki-remote
+          if ! git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki-remote; then
+            echo "Unable to clone the GitHub Wiki. Enable the Wiki and create an initial placeholder page in GitHub's Wiki UI before re-running Sync GitHub Wiki."
+            exit 1
+          fi
           shopt -s nullglob
           rm -f -- wiki-remote/*.md
           cp wiki/*.md wiki-remote/
