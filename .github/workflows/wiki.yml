@@ -32,8 +32,8 @@ jobs:
             exit 0
           fi
           if ! git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki-remote; then
-            echo "Unable to clone the GitHub Wiki. Enable the Wiki and create an initial placeholder page in GitHub's Wiki UI before re-running Sync GitHub Wiki."
-            exit 1
+            echo "::warning::Unable to clone the GitHub Wiki. The wiki repository is only created after its first page exists: enable the Wiki and create an initial placeholder page in GitHub's Wiki UI, then re-run Sync GitHub Wiki."
+            exit 0
           fi
           shopt -s nullglob
           rm -f -- wiki-remote/*.md
