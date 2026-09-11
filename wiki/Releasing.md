@@ -1,7 +1,8 @@
 # Releasing
 
-The release workflow creates a GitHub Release only for a pushed tag of the form `vX.Y.Z`
-whose version exactly matches `package.json`.
+The release workflow creates a GitHub Release only for a pushed tag of the form `v*`
+whose version exactly matches `package.json` (for example, `v1.2.3`; prerelease tags are
+also allowed when they match the package version).
 
 ## Publish a release
 
@@ -17,13 +18,14 @@ whose version exactly matches `package.json`.
 3. Commit the version change, open or update the release branch as appropriate, and merge
    it into `main`.
 4. From the merged `main` commit, create an annotated tag that exactly matches the package
-   version, then push `main` and the tag:
+   version, then push `main` and exactly that tag explicitly:
 
    ```bash
    git switch main
    git pull --ff-only
-   git tag -a vX.Y.Z -m "vX.Y.Z"
-   git push origin main --follow-tags
+   git tag -a v1.2.3 -m "v1.2.3"
+   git push origin main
+   git push origin v1.2.3
    ```
 
 5. Confirm the **Create release** GitHub Actions run succeeds and inspect the new GitHub
@@ -37,9 +39,11 @@ push the matching annotated tag.
 ## Wiki synchronization
 
 Wiki source pages live in `wiki/` on `main`. After changes under that directory are
-merged to `main`, the **Sync GitHub Wiki** workflow copies the Markdown pages to the
-GitHub Wiki. A maintainer can retry it from the Actions page with **Run workflow**
-(manual dispatch).
+merged to `main`, the **Sync GitHub Wiki** workflow performs a normal source-backed sync:
+it removes remote root Markdown pages and then copies the committed source Markdown to the
+GitHub Wiki. Therefore, UI-only Markdown pages and UI-only edits are overwritten or
+deleted. Make intentional changes in `wiki/`, commit them, and merge them to `main`.
+A maintainer can retry it from the Actions page with **Run workflow** (manual dispatch).
 
 Before the first automated synchronization, enable **Wikis** in the repository settings
 and create a placeholder page in GitHub's Wiki UI. This initializes the separate Wiki
