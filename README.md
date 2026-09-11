@@ -13,8 +13,12 @@
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
 
+The expanded setup, configuration, maintenance, and release guidance lives in the
+[GitHub Wiki](https://github.com/mgummich/MMM-BSR-TrashCalendar/wiki).
+
 ## Contents
 
+- [Wiki](https://github.com/mgummich/MMM-BSR-TrashCalendar/wiki)
 - [Features](#features)
 - [Installation](#installation)
 - [Configuration Recipes](#configuration-recipes)

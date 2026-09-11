@@ -1,0 +1,49 @@
+name: Sync GitHub Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "wiki/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+      - name: Sync Markdown files
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if ! compgen -G "wiki/*.md" > /dev/null; then
+            echo "No Markdown files found in wiki/; existing GitHub Wiki content will not be deleted."
+            exit 0
+          fi
+          if ! git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki-remote; then
+            echo "Unable to clone the GitHub Wiki. Enable the Wiki and create an initial placeholder page in GitHub's Wiki UI before re-running Sync GitHub Wiki."
+            exit 1
+          fi
+          shopt -s nullglob
+          rm -f -- wiki-remote/*.md
+          cp wiki/*.md wiki-remote/
+          cd wiki-remote
+          git add --all
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: sync GitHub Wiki"
+          git push
